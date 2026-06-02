@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--black:#000;--dark:#4A4A52;--mid:#7F7F7F;--light:#F5F5F5;--true:#FF0000;--dtac:#00C8FF;--border:#E8E8E8;--bg:#FAFAFA;--white:#fff;--radius:12px;--rsm:8px}
+:root{--black:#000;--dark:#4A4A52;--mid:#7F7F7F;--light:#F5F5F5;--true:#FF0000;--dtac:#00C8FF;--border:#E8E8E8;--bg:#FAFAFA;--white:#fff;--radius:12px;--rsm:8px;--green:#0A6E45;--red:#CC0000}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:var(--black);font-size:14px;line-height:1.5}
 .wrap{max-width:1440px;margin:0 auto;padding:20px 24px}
@@ -106,6 +106,19 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .ai-send:disabled{opacity:.5;cursor:not-allowed}
 #empty-state{text-align:center;padding:60px 20px}
 @media(max-width:800px){.ov-grid{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+
+/* ── PF Filter Panel v3.09 ── */
+.pf-filter-panel{border:1px solid var(--border);border-radius:var(--rsm);overflow:hidden;margin-bottom:12px}
+.pf-filter-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--bg);cursor:pointer;user-select:none}
+.pf-filter-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:#fff;border:1px solid var(--border);color:var(--mid);transition:all .15s}
+.pf-filter-badge.active-filter{background:#E6F1FB;border-color:#185FA5;color:#0C447C}
+.pf-filter-chevron{font-size:11px;color:var(--mid);transition:transform .2s;display:inline-block}
+.pf-filter-chevron.open{transform:rotate(180deg)}
+.pf-filter-body{display:none;padding:10px 12px;border-top:1px solid var(--border);background:#fff}
+.pf-filter-body.open{display:block}
+.pf-filter-summary{font-size:11px;color:var(--mid);padding:5px 12px;background:var(--bg);border-top:1px solid var(--border)}
+.pf-filter-summary b{color:var(--dark)}
+.pf-filter-lbl{font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
 </style>
 </head>
 <body>
@@ -122,40 +135,158 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
     <div class="sg"><label>Device Sold แยก Journey</label><div class="sc-group"><span class="sc on" id="sc-djf-on" onclick="toggleDevJourneyFilter(true)">กรองเหมือน KPI</span><span class="sc" id="sc-djf-off" onclick="toggleDevJourneyFilter(false)">นับทั้งหมด</span></div><p style="font-size:11px;color:#7F7F7F;margin-top:6px">กรองเหมือน KPI: ตัด IOT ออก และนับ Accessories เฉพาะ Apple</p></div>
   </div>
 </div>
-<!-- Password Gate -->
+<!-- Password Gate v3.11 -->
 <div id="pw-gate" style="display:none;position:fixed;inset:0;background:#FAFAFA;z-index:9999;justify-content:center;align-items:center">
   <div style="background:#fff;border:1px solid #E8E8E8;border-radius:16px;padding:40px 36px;width:360px;max-width:92vw;box-shadow:0 4px 32px rgba(0,0,0,.08)">
-    <div style="font-size:28px;text-align:center;margin-bottom:4px">🔒</div>
-    <h2 style="font-size:18px;font-weight:800;text-align:center;margin:0 0 4px;letter-spacing:-0.5px">eCommerce Dashboard</h2>
-    <p style="font-size:12px;color:#7F7F7F;text-align:center;margin:0 0 24px">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน</p>
-    <input id="pw-input" type="password" placeholder="Password" autofocus
-      style="width:100%;padding:11px 14px;border:1.5px solid #E8E8E8;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px"
-      onfocus="this.style.borderColor='#000'" onblur="this.style.borderColor='#E8E8E8'"
-      onkeydown="if(event.key==='Enter')checkPw()">
-    <div id="pw-error" style="display:none;font-size:12px;color:#FF0000;margin-bottom:10px;text-align:center">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่</div>
-    <button onclick="checkPw()" style="width:100%;padding:11px;background:#000;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">เข้าใช้งาน</button>
+
+    <!-- State: login form (default) -->
+    <div id="pw-form-state">
+      <div style="font-size:28px;text-align:center;margin-bottom:4px">🔒</div>
+      <h2 style="font-size:18px;font-weight:800;text-align:center;margin:0 0 4px;letter-spacing:-0.5px">eCommerce Dashboard</h2>
+      <p style="font-size:12px;color:#7F7F7F;text-align:center;margin:0 0 24px">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน</p>
+      <input id="pw-input" type="password" placeholder="Password" autofocus
+        style="width:100%;padding:11px 14px;border:1.5px solid #E8E8E8;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px"
+        onfocus="this.style.borderColor='#000'" onblur="this.style.borderColor='#E8E8E8'"
+        onkeydown="if(event.key==='Enter')checkPw()">
+      <div id="pw-error" style="display:none;font-size:12px;color:#FF0000;margin-bottom:10px;text-align:center">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่</div>
+      <button onclick="checkPw()" style="width:100%;padding:11px;background:#000;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">เข้าใช้งาน</button>
+    </div>
+
+    <!-- State: loading (แสดงหลัง password ถูก) -->
+    <div id="pw-loading-state" style="display:none;text-align:center">
+      <div style="width:48px;height:48px;border:3px solid #E8E8E8;border-top-color:#000;border-radius:50%;animation:pw-spin 0.9s linear infinite;margin:0 auto 16px"></div>
+      <div style="font-size:15px;font-weight:700;color:#000;margin-bottom:6px">กำลังดึงข้อมูลจาก GitHub</div>
+      <div style="font-size:12px;color:#7F7F7F;margin-bottom:16px">กรุณารอสักครู่...</div>
+      <div style="height:4px;background:#F0F0F0;border-radius:2px;overflow:hidden">
+        <div id="pw-progress" style="height:100%;background:#000;border-radius:2px;width:15%;transition:width 0.4s ease"></div>
+      </div>
+      <div id="pw-loading-sub" style="font-size:11px;color:#9ca3af;margin-top:10px">กำลังเชื่อมต่อ...</div>
+    </div>
+
+    <!-- State: error (แสดงถ้า fetch ล้มเหลว) -->
+    <div id="pw-error-state" style="display:none;text-align:center">
+      <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+      <div style="font-size:15px;font-weight:700;color:#000;margin-bottom:6px">โหลดข้อมูลไม่สำเร็จ</div>
+      <div id="pw-error-msg" style="font-size:12px;color:#7F7F7F;margin-bottom:20px;line-height:1.6">ไม่สามารถดึงข้อมูลจาก GitHub ได้<br>กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</div>
+      <button onclick="pwRetry()" style="width:100%;padding:11px;background:#000;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">🔄 ลองใหม่</button>
+      <button onclick="pwLoadDemo()" style="width:100%;padding:11px;background:#fff;color:#000;border:1.5px solid #E8E8E8;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">▶ ใช้ Demo Data แทน</button>
+    </div>
+
   </div>
 </div>
+<style>
+@keyframes pw-spin{to{transform:rotate(360deg)}}
+</style>
 <script>
 (function(){
   const HASH='e3b0c0a8b6d1e4f2a9c7d5e8f1b3c6a2d4e7f0b9c2d5e8a1b4c7d0e3f6a9b2';
-  function h(s){let h=0;for(let i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0;}return Math.abs(h).toString(16).padStart(8,'0');}
+  function h(s){let r=0;for(let i=0;i<s.length;i++){r=Math.imul(31,r)+s.charCodeAt(i)|0;}return Math.abs(r).toString(16).padStart(8,'0');}
   const CORRECT=h('vce-commerce2026');
   const gate=document.getElementById('pw-gate');
-  gate.style.display='flex';
-  if(sessionStorage.getItem('dash_auth')===CORRECT){gate.style.display='none';}
+
+  // v3.11: helper — switch pw-gate state
+  function pwShowState(state){
+    document.getElementById('pw-form-state').style.display    = state==='form'    ? 'block' : 'none';
+    document.getElementById('pw-loading-state').style.display = state==='loading' ? 'block' : 'none';
+    document.getElementById('pw-error-state').style.display   = state==='error'   ? 'block' : 'none';
+  }
+
+  // v3.11: animate progress bar while loading
+  let _progTimer=null;
+  function pwProgressStart(){
+    const bar=document.getElementById('pw-progress');
+    const sub=document.getElementById('pw-loading-sub');
+    const steps=[
+      {w:'25%',txt:'กำลังเชื่อมต่อ GitHub...'},
+      {w:'45%',txt:'กำลังดาวน์โหลดไฟล์...'},
+      {w:'65%',txt:'กำลังอ่านข้อมูล Excel...'},
+      {w:'80%',txt:'กำลังประมวลผล...'},
+    ];
+    let i=0;
+    bar.style.width='15%';
+    _progTimer=setInterval(()=>{
+      if(i<steps.length){ bar.style.width=steps[i].w; sub.textContent=steps[i].txt; i++; }
+    },900);
+  }
+  function pwProgressDone(){
+    clearInterval(_progTimer);
+    const bar=document.getElementById('pw-progress');
+    if(bar) bar.style.width='100%';
+  }
+
+  // v3.11: trigger after auth — fetch GitHub then open dashboard
+  async function pwFetchAndOpen(){
+    pwShowState('loading');
+    pwProgressStart();
+    try{
+      // reuse existing loadFromOneDrive logic inline
+      const GITHUB_URL=typeof GITHUB_EXCEL_URL!=='undefined'?GITHUB_EXCEL_URL:'';
+      const resp=await fetch(GITHUB_URL+'?t='+Date.now());
+      if(!resp.ok) throw new Error('HTTP '+resp.status+' — ไม่พบไฟล์ data.xlsx ใน GitHub');
+      const buf=await resp.arrayBuffer();
+      document.getElementById('pw-loading-sub').textContent='กำลังวิเคราะห์ข้อมูล...';
+      document.getElementById('pw-progress').style.width='90%';
+      const wb=XLSX.read(buf,{type:'array'});
+      const json={};
+      ['DOS','TOS-OLD','TOS-New'].forEach(name=>{
+        const ws=wb.Sheets[name];
+        if(!ws) return;
+        const raw2=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+        if(raw2.length<2) return;
+        json[name]={headers:raw2[0].map(hd=>String(hd||'').trim()),rows:raw2.slice(1)};
+      });
+      const allRows=parseSheetJson(json);
+      if(!allRows.length) throw new Error('ไม่พบ Sheet DOS, TOS-OLD, TOS-New ในไฟล์');
+      RAW_ROWS=allRows;
+      DATA=processRows(allRows);
+      const now=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+      setStatus('✓ '+allRows.length.toLocaleString()+' rows · โหลดเมื่อ '+now,'ok');
+      pwProgressDone();
+      setTimeout(()=>{
+        gate.style.display='none';
+        renderAll();
+        document.getElementById('empty-state').style.display='none';
+        document.getElementById('dashboard').style.display='block';
+        const _hdrsub=document.getElementById('hdr-sub');
+        if(_hdrsub) _hdrsub.textContent='GitHub · DOS · TOS-OLD · TOS-New · '+DASH_VERSION;
+      },300);
+    } catch(err){
+      pwProgressDone();
+      document.getElementById('pw-error-msg').textContent=String(err.message||err);
+      pwShowState('error');
+    }
+  }
+
+  // Exposed globals
   window.checkPw=function(){
     const v=document.getElementById('pw-input').value;
     if(h(v)===CORRECT){
       sessionStorage.setItem('dash_auth',CORRECT);
-      gate.style.display='none';
       document.getElementById('pw-error').style.display='none';
+      pwFetchAndOpen(); // v3.11: fetch AFTER login
     } else {
       document.getElementById('pw-error').style.display='block';
       document.getElementById('pw-input').value='';
       document.getElementById('pw-input').focus();
     }
   };
+
+  window.pwRetry=function(){
+    pwShowState('loading');
+    pwFetchAndOpen();
+  };
+
+  window.pwLoadDemo=function(){
+    gate.style.display='none';
+    loadEmbeddedData2();
+  };
+
+  // Show gate on load — v3.11: no auto-fetch here
+  gate.style.display='flex';
+  if(sessionStorage.getItem('dash_auth')===CORRECT){
+    // Already authenticated this session — fetch directly
+    pwFetchAndOpen();
+  }
 })();
 </script>
 
@@ -227,8 +358,8 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
           <h4>Brand Scorecard — Top <span id="brand-topn-lbl">5</span> <span style="font-size:10px;color:var(--mid);font-weight:400">คลิก Brand → Model</span></h4>
           <div id="brand-heatmap"></div>
           <div class="drilldown" id="brand-model-panel"><div class="drilldown-hdr"><span class="drilldown-title" id="brand-model-title">Model Drilldown</span><button class="drilldown-close" onclick="closeDrilldown('brand-model-panel')">✕ ปิด</button></div><div id="brand-model-table"></div></div>
-          <div class="an-list" id="brand-anomaly"></div>
-        </div>
+          <div class="an-list" id="brand-anomaly" style="display:none"></div>
+
         <!-- Model Drilldown panel (v1 full drilldown) -->
         <div id="model-drilldown" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rsm);padding:16px;margin-top:12px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -253,6 +384,38 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
           </div>
           <div id="model-journey-content"></div>
         </div>
+        </div>
+
+
+        <!-- v3.12: Model Scorecard Top-N -->
+        <div class="ct-card">
+          <h4>Model Scorecard — Top <span id="model-topn-lbl">5</span>
+            <span style="font-size:10px;color:var(--mid);font-weight:400">คลิก Model → Daily View</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" id="model-sc-tbl-btn" onclick="toggleTable('model-sc-tbl');this.textContent=document.getElementById('model-sc-tbl').classList.contains('show')?'ตาราง ▴':'ตาราง ▾'">ตาราง ▾</button>
+              <span class="info-btn" onclick="toggleModelScInfo()">ⓘ</span>
+            </span>
+          </h4>
+          <div class="info-box" id="model-sc-info">
+            <div class="info-box-title">📋 ที่มาของข้อมูล — Model Scorecard</div>
+            <div class="info-box-body">
+              นับจาก Product Name ทั้งหมด · apply Settings Status Filter และ Top N เดียวกับ Brand Scorecard<br>
+              สีพื้น cell = intensity ตามสัดส่วน (max=100%) · กรอบ <b style="color:#CC0000">แดง</b> = ลดเกิน threshold · กรอบ <b style="color:#0A6E45">เขียว</b> = โตเกิน threshold<br>
+              คลิก Model เพื่อดู Daily View drill-down รายวัน
+            </div>
+          </div>
+          <div id="model-sc-heatmap"></div>
+          <div class="ct-tbl" id="model-sc-tbl" style="margin-top:10px"></div>
+          <div class="drilldown" id="model-sc-daily-panel">
+            <div class="drilldown-hdr">
+              <span class="drilldown-title" id="model-sc-daily-title">Daily View</span>
+              <button class="drilldown-close" onclick="closeDrilldown('model-sc-daily-panel')">✕ ปิด</button>
+            </div>
+            <div id="model-sc-daily-content"></div>
+          </div>
+        </div>
+
+
       </div>
       <div class="tab-body" id="tab-gap">
         <div class="kpi-row" id="gap-kpis"></div>
@@ -269,6 +432,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
         <div id="journey-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
       </div>
       <div class="tab-body" id="tab-payfail">
+        <!-- existing: Payment Fail รายเดือน -->
         <div class="ct-card" style="max-width:900px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <h4 style="margin:0">Payment Fail รายเดือน</h4>
@@ -276,6 +440,239 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
           </div>
           <div style="position:relative;height:320px"><canvas id="chart-payfail"></canvas></div>
           <div class="ct-tbl" id="tbl-payfail" style="margin-top:16px"></div>
+        </div>
+        <!-- v3.09: Chart 1 — Confirmed vs Drop Off (A) -->
+        <div class="ct-card" style="max-width:900px;margin-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h4 style="margin:0;font-size:13px">Confirmed vs Payment Drop Off (A)</h4>
+              <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#FAEEDA;color:#854F0B">desc = "-"</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="toggle-btn" id="pf-c1-tbl-btn" onclick="pfToggleTbl('pf-c1-tbl','pf-c1-tbl-btn')">ตาราง ▾</button>
+              <span class="info-btn" onclick="pfToggleInfo('pf-c1-info')">ⓘ</span>
+            </div>
+          </div>
+          <div class="info-box" id="pf-c1-info">
+            <div class="info-box-title">📋 ที่มาของข้อมูล — Confirmed vs Payment Drop Off (A)</div>
+            <div class="info-box-body">กรองจาก <b>TOS-New</b> เฉพาะ <b>Total Payment &gt; 0</b> · ไม่รวม Cancelled, Payment Fail (B), Other<br><b>Confirmed</b> = Fai_Order Stage ∈ (In-Progress, Completed)<br><b>Payment Drop Off (A)</b> = PaymentStage = Failed + desc = <code>"-"</code><br>% คำนวณจาก Confirmed + Drop Off เป็น base (100%)</div>
+          </div>
+          <!-- Filter Panel -->
+          <div class="pf-filter-panel" id="pf-c1-fp">
+            <div class="pf-filter-toggle" onclick="pfToggleFilter('pf-c1-fp')">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--dark)">
+                <span>🔽 Filter</span>
+                <span class="pf-filter-badge" id="pf-c1-badge">ทุก Journey · ทุกเดือน</span>
+              </div>
+              <span class="pf-filter-chevron" id="pf-c1-chev">▾</span>
+            </div>
+            <div class="pf-filter-body" id="pf-c1-body">
+              <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+                <div>
+                  <div class="pf-filter-lbl">Journey <span style="font-weight:400;font-size:9px;opacity:.7">(multi-select)</span></div>
+                  <div id="pf-c1-jchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+                <div style="width:1px;background:var(--border);align-self:stretch"></div>
+                <div>
+                  <div class="pf-filter-lbl">เดือน <span style="font-weight:400;font-size:9px;opacity:.7">(single-select)</span></div>
+                  <div id="pf-c1-mchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+              </div>
+            </div>
+            <div class="pf-filter-summary" id="pf-c1-summary"></div>
+          </div>
+          <div style="position:relative;height:220px"><canvas id="chart-pf-c1"></canvas></div>
+          <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--mid);flex-wrap:wrap">
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#3B6D11;margin-right:4px;vertical-align:middle"></span>Confirmed (In-Progress + Completed)</span>
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#BA7517;margin-right:4px;vertical-align:middle"></span>Payment Drop Off (A)</span>
+          </div>
+          <div class="ct-tbl" id="pf-c1-tbl" style="margin-top:10px"></div>
+          <div id="pf-c1-insights" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <!-- v3.09: Chart 2 — Confirmed vs Payment Fail (B) -->
+        <div class="ct-card" style="max-width:900px;margin-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h4 style="margin:0;font-size:13px">Confirmed vs Payment Fail (B)</h4>
+              <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:#FCEBEB;color:#A32D2D">desc ≠ "-"</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="toggle-btn" id="pf-c2-tbl-btn" onclick="pfToggleTbl('pf-c2-tbl','pf-c2-tbl-btn')">ตาราง ▾</button>
+              <span class="info-btn" onclick="pfToggleInfo('pf-c2-info')">ⓘ</span>
+            </div>
+          </div>
+          <div class="info-box" id="pf-c2-info">
+            <div class="info-box-title">📋 ที่มาของข้อมูล — Confirmed vs Payment Fail (B)</div>
+            <div class="info-box-body">กรองจาก <b>TOS-New</b> เฉพาะ <b>Total Payment &gt; 0</b> · ไม่รวม Cancelled, Drop Off (A), Other<br><b>Confirmed</b> = Fai_Order Stage ∈ (In-Progress, Completed)<br><b>Payment Fail (B)</b> = PaymentStage = Failed + desc ≠ <code>"-"</code><br>% คำนวณจาก Confirmed + Fail เป็น base (100%)</div>
+          </div>
+          <!-- Filter Panel -->
+          <div class="pf-filter-panel" id="pf-c2-fp">
+            <div class="pf-filter-toggle" onclick="pfToggleFilter('pf-c2-fp')">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--dark)">
+                <span>🔽 Filter</span>
+                <span class="pf-filter-badge" id="pf-c2-badge">ทุก Journey · ทุกเดือน</span>
+              </div>
+              <span class="pf-filter-chevron" id="pf-c2-chev">▾</span>
+            </div>
+            <div class="pf-filter-body" id="pf-c2-body">
+              <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+                <div>
+                  <div class="pf-filter-lbl">Journey <span style="font-weight:400;font-size:9px;opacity:.7">(multi-select)</span></div>
+                  <div id="pf-c2-jchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+                <div style="width:1px;background:var(--border);align-self:stretch"></div>
+                <div>
+                  <div class="pf-filter-lbl">เดือน <span style="font-weight:400;font-size:9px;opacity:.7">(single-select)</span></div>
+                  <div id="pf-c2-mchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+              </div>
+            </div>
+            <div class="pf-filter-summary" id="pf-c2-summary"></div>
+          </div>
+          <div style="position:relative;height:220px"><canvas id="chart-pf-c2"></canvas></div>
+          <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--mid);flex-wrap:wrap">
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#3B6D11;margin-right:4px;vertical-align:middle"></span>Confirmed (In-Progress + Completed)</span>
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#A32D2D;margin-right:4px;vertical-align:middle"></span>Payment Fail (B)</span>
+          </div>
+          <div class="ct-tbl" id="pf-c2-tbl" style="margin-top:10px"></div>
+          <div id="pf-c2-insights" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <!-- v3.10: Section divider -->
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 0;margin-top:6px;max-width:900px">
+          <div style="flex:1;height:0.5px;background:var(--border)"></div>
+          <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Payment Fail (B) — Fail Reason Trend Analysis</div>
+          <div style="flex:1;height:0.5px;background:var(--border)"></div>
+        </div>
+
+        <!-- v3.10: Fail Reason Trend card -->
+        <div class="ct-card" style="max-width:900px;margin-top:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h4 style="margin:0;font-size:13px">Fail Reason Trend — Device Bundle &amp; Single Product</h4>
+              <div style="font-size:11px;color:var(--mid);margin-top:2px">Group B · Total Payment &gt; 0 · trend แต่ละ fail reason รายเดือน</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button class="toggle-btn" id="frt-tbl-btn" onclick="frtToggleTbl()">ตาราง ▾</button>
+              <span class="info-btn" onclick="frtToggleInfo()">ⓘ</span>
+            </div>
+          </div>
+
+          <div class="info-box" id="frt-info">
+            <div class="info-box-title">📋 ที่มาของข้อมูล — Fail Reason Trend</div>
+            <div class="info-box-body">กรองจาก <b>TOS-New</b> · Total Payment &gt; 0 · PaymentStage = Failed · desc ≠ "-" (Group B)<br>
+            Journey เริ่มต้น: device_bundle_existing, device_bundle_new, device_bundle_p2p, device_only, single_product<br>
+            Fail Reason = first attempt (desc แรกก่อน | delimiter) · ปรับตาม filter Journey + Month</div>
+          </div>
+
+          <!-- Filter panel -->
+          <div class="pf-filter-panel" id="frt-fp" style="margin-top:10px">
+            <div class="pf-filter-toggle" onclick="frtToggleFilter()">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--dark)">
+                <span>⚙ Filter</span>
+                <span class="pf-filter-badge" id="frt-badge">DVB + Single Product · ทุกเดือน</span>
+              </div>
+              <span class="pf-filter-chevron" id="frt-chev">▾</span>
+            </div>
+            <div class="pf-filter-body" id="frt-body">
+              <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+                <div>
+                  <div class="pf-filter-lbl">Journey <span style="font-weight:400;font-size:9px;opacity:.7">(multi)</span></div>
+                  <div id="frt-jchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+                <div style="width:1px;background:var(--border);align-self:stretch"></div>
+                <div>
+                  <div class="pf-filter-lbl">เดือน <span style="font-weight:400;font-size:9px;opacity:.7">(single)</span></div>
+                  <div id="frt-mchips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+                </div>
+              </div>
+            </div>
+            <div class="pf-filter-summary" id="frt-sum">กำลังโหลด...</div>
+          </div>
+
+          <!-- Overview summary bar -->
+          <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:4px">สรุป fail reason</div>
+          <div id="frt-overview" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px"></div>
+
+          <!-- Main trend chart -->
+          <div style="position:relative;height:200px;margin-bottom:8px">
+            <canvas id="chart-frt-main"></canvas>
+          </div>
+          <div id="frt-legend" style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--mid)"></div>
+
+          <!-- Divider -->
+          <div style="height:0.5px;background:var(--border);margin:14px 0 10px"></div>
+          <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Key Insights แต่ละ Reason</div>
+
+          <!-- Insight cards grid -->
+          <div id="frt-insight-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div>
+
+          <!-- Table -->
+          <div class="ct-tbl" id="frt-tbl" style="margin-top:12px"></div>
+        </div>
+
+        <!-- v3.08: Overview -->
+        <div class="ct-card" style="max-width:900px;margin-top:14px">
+          <h4>Payment Drop Off vs Payment Fail — Overview
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" id="pf-ov-tbl-btn" onclick="toggleTable('pf-ov-tbl');this.textContent=document.getElementById('pf-ov-tbl').classList.contains('show')?'ตาราง ▴':'ตาราง ▾'">ตาราง ▾</button>
+              <span class="info-btn" onclick="togglePFInfo('pf-ov-info')">ⓘ</span>
+            </span>
+          </h4>
+          <div class="info-box" id="pf-ov-info">
+            <div class="info-box-title">📋 ที่มาของข้อมูล — Payment Drop Off vs Payment Fail</div>
+            <div class="info-box-body">กรองจาก <b>TOS-New</b> เฉพาะ <b>Total Payment &gt; 0</b> + <b>PaymentStage = Failed</b><br><br><b>Group A — Payment Drop Off</b>: Payment Fail Description Final = <code>"-"</code> → Payment Status = Pending ทุก order ระบบไม่ได้รับ callback จาก gateway หรือ session หมดอายุ<br><br><b>Group B — Payment Fail</b>: Payment Fail Description Final ≠ <code>"-"</code> → มี fail reason บันทึกชัดเจน</div>
+          </div>
+          <div id="pf-ov-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+          <div style="position:relative;height:200px"><canvas id="chart-pf-trend"></canvas></div>
+          <div class="ct-tbl" id="pf-ov-tbl" style="margin-top:12px"></div>
+          <div id="pf-ov-insights" style="margin-top:12px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <!-- v3.08: Group A Payment Drop Off -->
+        <div class="ct-card" style="max-width:900px;margin-top:14px">
+          <h4>Group A — Payment Drop Off แยก Order Type <span style="font-size:10px;font-weight:400;color:var(--mid)">desc = "-"</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" id="pf-a-tbl-btn" onclick="toggleTable('pf-a-tbl');this.textContent=document.getElementById('pf-a-tbl').classList.contains('show')?'ตาราง ▴':'ตาราง ▾'">ตาราง ▾</button>
+              <span class="info-btn" onclick="togglePFInfo('pf-a-info')">ⓘ</span>
+            </span>
+          </h4>
+          <div class="info-box" id="pf-a-info">
+            <div class="info-box-title">📋 Payment Drop Off — นิยามและ Pattern</div>
+            <div class="info-box-body">PaymentStage = Failed + desc = "-" + Payment Status = Pending → ทุก order ถูก Cancelled<br><br>สาเหตุ: user ออกจาก flow ก่อน, session timeout, gateway ไม่ยิง callback<br>avg GMV = <b>27,217 บาท/order</b> · 61% ใช้ tmnPayNextExtra · 178 orders มีหลาย method (retry)</div>
+          </div>
+          <div id="pf-a-filter" style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:10px">
+            <div><div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Journey <span style="font-weight:400;font-size:9px">(multi)</span></div><div id="pf-a-j-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+            <div style="width:1px;background:var(--border);align-self:stretch"></div>
+            <div><div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">เดือน <span style="font-weight:400;font-size:9px">(single)</span></div><div id="pf-a-m-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+          </div>
+          <div id="pf-a-filter-label" style="font-size:11px;color:var(--mid);margin-bottom:10px"></div>
+          <div id="pf-a-method-bars" style="margin-bottom:10px"></div>
+          <div id="pf-a-content"></div>
+          <div class="ct-tbl" id="pf-a-tbl" style="margin-top:10px"></div>
+          <div id="pf-a-insights" style="margin-top:12px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <!-- v3.08: Group B Payment Fail -->
+        <div class="ct-card" style="max-width:900px;margin-top:14px">
+          <h4>Group B — Payment Fail แยก Fail Reason <span style="font-size:10px;font-weight:400;color:var(--mid)">desc ≠ "-"</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" id="pf-b-tbl-btn" onclick="toggleTable('pf-b-tbl');this.textContent=document.getElementById('pf-b-tbl').classList.contains('show')?'ตาราง ▴':'ตาราง ▾'">ตาราง ▾</button>
+              <span class="info-btn" onclick="togglePFInfo('pf-b-info')">ⓘ</span>
+            </span>
+          </h4>
+          <div class="info-box" id="pf-b-info">
+            <div class="info-box-title">📋 Payment Fail — นิยามและ Fail Reasons</div>
+            <div class="info-box-body">PaymentStage = Failed + desc ≠ "-" → fail reason บันทึกในระบบ (retry ใช้ | คั่น ดึง first attempt)<br>avg GMV = <b>18,735 บาท/order</b> · <b>Not accept app4in1</b> (49%) เป็น UX consent ไม่ใช่ gateway issue</div>
+          </div>
+          <div id="pf-b-filter" style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:10px">
+            <div><div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Journey <span style="font-weight:400;font-size:9px">(multi)</span></div><div id="pf-b-j-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+            <div style="width:1px;background:var(--border);align-self:stretch"></div>
+            <div><div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">เดือน <span style="font-weight:400;font-size:9px">(single)</span></div><div id="pf-b-m-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+          </div>
+          <div id="pf-b-filter-label" style="font-size:11px;color:var(--mid);margin-bottom:10px"></div>
+          <div id="pf-b-content"></div>
+          <div class="ct-tbl" id="pf-b-tbl" style="margin-top:10px"></div>
+          <div id="pf-b-insights" style="margin-top:12px;display:flex;flex-direction:column;gap:6px"></div>
         </div>
       </div>
       <!-- ============================================================ -->
@@ -1182,10 +1579,13 @@ function showDailyView(brand, model, journey, month, monthLabel){
       const h=maxVal>0?Math.max(Math.round(v/maxVal*80),v>0?4:0):0;
       const day=d.slice(8);
       const isWeekend=[0,6].includes(new Date(d).getDay());
+      const isHolDay=isCompanyHoliday(d);
       const bg=v===0?'rgba(0,0,0,0.06)':barColor;
+      const holDot=isHolDay?`<div style="width:5px;height:5px;border-radius:50%;background:#FF6600;flex-shrink:0"></div>`:'<div style="width:5px;height:5px"></div>';
       return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
         <div style="font-size:9px;color:var(--text3);line-height:1;">${v>0?v:''}</div>
-        <div style="height:${h}px;width:100%;background:${bg};border-radius:2px 2px 0 0;transition:height 0.3s;min-height:${v>0?4:2}px;opacity:${isWeekend?0.6:1};" title="${d}: ${v}"></div>
+        ${holDot}
+        <div style="height:${h}px;width:100%;background:${bg};border-radius:2px 2px 0 0;transition:height 0.3s;min-height:${v>0?4:2}px;opacity:${isWeekend||isHolDay?0.6:1};" title="${d}: ${v}${isHolDay?' 🏖หยุดบริษัท':''}"></div>
         <div style="font-size:9px;color:${isWeekend?'var(--text3)':'var(--text2)'};line-height:1;transform:rotate(-35deg);transform-origin:top;margin-top:4px;white-space:nowrap;">${day}</div>
       </div>`;
     }).join('');
@@ -1964,7 +2364,9 @@ function renderBrand(){
 
   const allB={};
   MONTHS.forEach(m=>Object.entries(br[m]||{}).forEach(([b,cnt])=>{allB[b]=(allB[b]||0)+cnt;}));
-  const topBrands=sortedTop(allB,5).map(e=>e[0]);
+  const _topN=parseInt(document.getElementById('set-topn')?.value||5);
+  document.getElementById('brand-topn-lbl').textContent=_topN;
+  const topBrands=sortedTop(allB,_topN).map(e=>e[0]);
 
   // ── Brand Heatmap Table ──
   const heatEl=document.getElementById('brand-heatmap');
@@ -2040,49 +2442,14 @@ function renderBrand(){
       </tr></thead>
       <tbody>${rows.join('')}
       <tr style="background:var(--bg3,#f0f2f7);font-weight:600;">
-        <td style="padding:8px 10px;">Top 5 รวม</td>${totalCells}
+        <td style="padding:8px 10px;">Top ${_topN} รวม</td>${totalCells}
         <td style="text-align:right;font-family:'IBM Plex Mono',monospace;padding:8px 10px;">${grandTotal.toLocaleString()}</td>
       </tr></tbody>
     </table>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;">💡 คลิกที่ Brand เพื่อดู Model Drilldown · สีเข้ม = ยอดสูง · %MoM ตัวหนา = เกิน threshold</div>`;
   }
 
-  // ── Anomaly alerts ──
-  const an=[];
-  topBrands.forEach(b=>{
-    const vals=MONTHS.map(m=>gv(br,m,b));
-    for(let i=1;i<vals.length;i++){
-      if(vals[i-1]>5){
-        const pct=((vals[i]-vals[i-1])/vals[i-1]*100);
-        if(brandStatus==='cancel'){
-          // Cancel: เพิ่ม=แย่, ลด=ดี
-          if(pct>=threshold) an.push(anomaly(
-            `⚠️ ${b} Cancel เพิ่ม ${pct.toFixed(1)}% ${ML[i-1]}→${ML[i]}`,
-            `${vals[i-1].toLocaleString()} → ${vals[i].toLocaleString()} · ควรตรวจสอบสาเหตุที่ cancel เพิ่มขึ้น`
-          ));
-          else if(pct<=-threshold) an.push(anomaly(
-            `🚀 ${b} Cancel ลด ${Math.abs(pct).toFixed(1)}% ${ML[i-1]}→${ML[i]}`,
-            `${vals[i-1].toLocaleString()} → ${vals[i].toLocaleString()} · cancel ลดลง เป็นสัญญาณที่ดี`,true
-          ));
-        } else {
-          // Confirm: ลด=แย่, เพิ่ม=ดี
-          if(pct<=-threshold) an.push(anomaly(
-            `⚠️ ${b} ยอดลด ${Math.abs(pct).toFixed(1)}% ${ML[i-1]}→${ML[i]}`,
-            `${vals[i-1].toLocaleString()} → ${vals[i].toLocaleString()} · คลิก Brand เพื่อดู Model ที่หายไป`
-          ));
-          else if(pct>=threshold) an.push(anomaly(
-            `🚀 ${b} ยอดโต ${pct.toFixed(1)}% ${ML[i-1]}→${ML[i]}`,
-            `${vals[i-1].toLocaleString()} → ${vals[i].toLocaleString()} · กรอบเขียว = เพิ่มขึ้นผิดปกติ`,true
-          ));
-        }
-      }
-    }
-  });
-  // anomaly จาก Model drilldown (model หายไปหรือโตผิดปกติ)
-  const an2El=document.getElementById('brand-anomaly');
-  an2El.innerHTML=an.length>0
-    ? an.join('')
-    : `<div style="padding:12px 16px;font-size:12px;color:var(--text3);">✅ ไม่พบ anomaly เกิน ${threshold}% MoM</div>`;
+  // v3.12: anomaly list removed — borders retained in cells
 }
 
 
@@ -2347,11 +2714,17 @@ function reAggregate(){
 function getSts(){return CFG.status==='cancel'?['cancel']:['completed','inprogress'];}
 function toggleSettings(){document.getElementById('settings-overlay').classList.toggle('open');}
 function toggleSettingChip(k){CFG.status=k;['confirm','cancel'].forEach(s=>document.getElementById('sc-'+s).classList.toggle('on',s===k));if(DATA.order)renderAll();}
-function applySettings(){CFG.threshold=parseInt(document.getElementById('set-threshold').value)||50;CFG.topN=parseInt(document.getElementById('set-topn').value)||5;CFG.sheet=document.getElementById('set-sheet').value||'all';document.getElementById('brand-topn-lbl').textContent=CFG.topN;if(DATA){reAggregate();renderAll();}}
+function applySettings(){CFG.threshold=parseInt(document.getElementById('set-threshold').value)||50;CFG.topN=parseInt(document.getElementById('set-topn').value)||5;CFG.sheet=document.getElementById('set-sheet').value||'all';document.getElementById('brand-topn-lbl').textContent=CFG.topN;const _mLbl=document.getElementById('model-topn-lbl');if(_mLbl)_mLbl.textContent=CFG.topN;if(DATA){reAggregate();renderAll();}}
 function switchTab2(name,el){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.tab-body').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.getElementById('tab-'+name).classList.add('on');}
 function toggleTable(id){document.getElementById(id).classList.toggle('show');}
 function toggleTrendTable(){const el=document.getElementById('trend-table-wrap');el.style.display=el.style.display==='none'?'block':'none';}
-function closeDrilldown(id){document.getElementById(id).classList.remove('open');}
+function closeDrilldown(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  // support both classList 'open' pattern and display:block/none pattern
+  if(el.classList.contains('open')) el.classList.remove('open');
+  else el.style.display='none';
+}
 function fmt(n){return(n||0).toLocaleString();}
 function pct(cur,prev){if(!prev)return'';const p=((cur-prev)/prev*100).toFixed(1);return`<span class="${p>0?'up':'dn'}">${p>0?'▲':'▼'}${Math.abs(p)}%</span>`;}
 function gv2(obj,m,k){return(obj[m]||{})[k]||0;}
@@ -2435,7 +2808,7 @@ function renderPayFail(){
   });
   tbl.innerHTML=h+`</tbody></table>`;
 }
-function renderAll(){if(!DATA.order)return;renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();}
+function renderAll(){if(!DATA.order)return;renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
 
 function renderOverview2(){
   const sts=getSts();
@@ -2563,9 +2936,15 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.07_20260529';
+const DASH_VERSION   = 'v3.13_20260529';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 const CHANGELOG = [
+  { v:'v3.13_20260529', note:'(1) Fix anomaly borders in Brand+Model Scorecard cells; (2) Fix Brand Scorecard footer Top N label; (3) Model Scorecard Daily View: replace bar chart with Calendar Heatmap (True red ramp, tab months, KPI, tooltip, insight); (4) Fix close button model-sc-daily-panel; (5) Show version after login; (6) Add COMPANY_HOLIDAYS config 2026 with smart border on heatmap; (7) True brand red ramp for heatmap' },
+  { v:'v3.12_20260529', note:'Brand Scorecard: (1) remove anomaly alert list below table — keep cell borders; (2) fix top-N to use set-topn from Settings instead of hardcoded 5; (3) add Model Scorecard Top-N table same style as Brand — heatmap, %MoM, anomaly borders, brand sub-label, daily drill-down, table toggle, info btn' },
+  { v:'v3.11_20260529', note:'Login flow: remove auto-load on page open — fetch GitHub data AFTER password confirmed; pw-gate card shows spinner + loading text + progress bar during fetch; error state with retry button if fetch fails' },
+  { v:'v3.10_20260529', note:'Payment Fail tab: add Fail Reason Trend Analysis section (Group B · DVB + Single Product) — collapsible filter (Journey multi + Month single), overview summary bar, main multi-line trend chart, 6 insight cards, full monthly table' },
+  { v:'v3.09_20260529', note:'Payment Fail tab: add 2 stacked charts (Confirmed vs Drop Off A, Confirmed vs Payment Fail B) with collapsible filter panel (Journey multi-select + Month single-select), table toggle, info btn, key insights — placed after Payment Fail รายเดือน' },
+  { v:'v3.08_20260529', note:'Payment Fail tab: add Drop Off (Group A) vs Payment Fail (Group B) analysis — Overview KPI+trend, Group A Order Type with Journey multi-select + Month single-select filter + bar chart + insights, Group B Fail Reason with same filters + insights — all computed live from TOS-New _rows' },
   { v:'v3.07_20260529', note:'Add Order Daily Trend tab: Filter by Month (single) + Journey (multi-select chip), KPI cards, daily bar chart, journey breakdown table with MoM, daily drill-down panel — applies Settings Status filter' },
   { v:'v3.06_20260527', note:'Normalize brand name: split by comma/pipe, Title Case, BRAND_MAP override (OPPO, HONOR, IMOO, DTAC, AIS) — fix vivo/VIVO, Baseus/BASEUS duplicate' },
   { v:'v3.05_20260527', note:'Fix isDevEligible: เพิ่ม DEV_CATS.includes(product_cat) ให้ KPI card และ Journey table ตรงกัน' },
@@ -2637,10 +3016,7 @@ async function loadFromOneDrive(){
   document.getElementById('od-load-btn').disabled=false;
 }
 
-// auto-load ทุกครั้งที่เปิดหน้า
-window.addEventListener('load',function(){
-  setTimeout(loadFromOneDrive,500);
-});
+// v3.11: ไม่ auto-load — รอให้ user login ก่อน (trigger ใน checkPw)
 
 
 
@@ -2718,7 +3094,11 @@ function initODTFilters(){
   availJ.forEach(j=>{
     const c=document.createElement('span');
     c.className='sc'; c.dataset.j=j;
-    c.textContent=j.replace('Device Bundle ','').replace('SIM Only - ','SIM: ');
+    c.textContent=(function(j){
+        if(j.startsWith('Device Bundle ')) return 'DVB '+j.replace('Device Bundle ','');
+        if(j.startsWith('SIM Only - ')) return 'SIM '+j.replace('SIM Only - ','');
+        return j;
+      })(j);
     c.onclick=function(){
       if(_odtSelJourneys.has(j)){
         _odtSelJourneys.delete(j);
@@ -3037,7 +3417,1388 @@ function odtShowDailyJourney(journey, month, monthLabel){
 }
 
 // ============================================================
+// PAYMENT FAIL ANALYSIS — v3.08
+// ============================================================
+// Static data computed from Python analysis of TOS-New
+// (recalculated live from DATA._rows when available)
+
+const PF_MONTHS_LABELS = {'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+const PF_A_COLOR = '#BA7517'; // amber — Drop Off
+const PF_B_COLOR = '#A32D2D'; // red   — Payment Fail
+
+// Filter state
+let _pfAJourneys = new Set(['all']);
+let _pfAMonth = 'all';
+let _pfBJourneys = new Set(['all']);
+let _pfBMonth = 'all';
+
+function togglePFInfo(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle('open');
+}
+
+// ── Compute from _rows ─────────────────────────────────────
+// pfGetRows: ใช้ RAW_ROWS + r._get() เพราะ processed _rows ไม่มี raw payment fields
+function pfGetRows(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return [];
+  return RAW_ROWS.filter(r=>{
+    if(r._sheet!=='TOS-New') return false;
+    const tp=parseFloat(r._get('Total Payment')||0);
+    if(tp<=0) return false;
+    const ps=String(r._get('PaymentStage')||'').trim();
+    return ps==='Failed';
+  });
+}
+
+function pfRowMonth(r){
+  // ดึง month จาก RAW_ROW (ใช้ __day หรือ Date)
+  const day=r._get('__day')||'';
+  if(day&&day.length>=7) return day.slice(0,7);
+  const d=r._get('Date')||r._get('Order Create Date')||'';
+  const m=String(d).trim().match(/^(\d{4})-(\d{2})/);
+  return m?m[1]+'-'+m[2]:'';
+}
+
+function pfRows(group, journeySet, month){
+  return pfGetRows().filter(r=>{
+    const desc=String(r._get('Payment Fail Description Final')||'').trim();
+    if(group==='A'&&desc!=='-') return false;
+    if(group==='B'&&desc==='-') return false;
+    if(!journeySet.has('all')){
+      if(!journeySet.has(r._get('Order Type')||'')) return false;
+    }
+    if(month!=='all'){
+      const rm=pfRowMonth(r);
+      if(!rm.startsWith(month)) return false;
+    }
+    return true;
+  });
+}
+
+function pfGMV(rows){
+  return rows.reduce((s,r)=>s+parseFloat(r._get('Total Payment')||0),0);
+}
+
+function pfInsightHtml(items){
+  return items.map(({cls,title,sub})=>`
+    <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border-radius:0 8px 8px 0;border-left:3px solid;${cls}">
+      <div><div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:2px">${title}</div>
+      <div style="font-size:11px;color:var(--mid);line-height:1.5">${sub}</div></div>
+    </div>`).join('');
+}
+
+// ── Overview ────────────────────────────────────────────────
+function renderPFOverview(){
+  const allA=pfRows('A',new Set(['all']),'all');
+  const allB=pfRows('B',new Set(['all']),'all');
+  const gmvA=pfGMV(allA), gmvB=pfGMV(allB);
+  const paid=(RAW_ROWS||[]).filter(r=>r._sheet==='TOS-New'&&String(r._get('PaymentStage')||'').trim()==='Paid'&&parseFloat(r._get('Total Payment')||0)>0);
+  const gmvPaid=pfGMV(paid);
+  const ratio=gmvPaid>0?((gmvA+gmvB)/gmvPaid).toFixed(1):'–';
+
+  // KPI cards
+  document.getElementById('pf-ov-kpis').innerHTML=[
+    {l:'Drop Off (A)',v:allA.length.toLocaleString(),s:'GMV '+fmt2(gmvA),c:'var(--amber,#BA7517)'},
+    {l:'Payment Fail (B)',v:allB.length.toLocaleString(),s:'GMV '+fmt2(gmvB),c:'#CC0000'},
+    {l:'GMV at Risk รวม',v:fmt2(gmvA+gmvB),s:'บาท · ทั้ง 2 กลุ่ม',c:'#CC0000'},
+    {l:'vs Paid GMV',v:ratio+'× Paid GMV',s:'Paid = '+fmt2(gmvPaid)+' บาท',c:'var(--amber,#BA7517)'},
+  ].map(k=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 13px">
+    <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">${k.l}</div>
+    <div style="font-size:18px;font-weight:700;color:${k.c};line-height:1">${k.v}</div>
+    <div style="font-size:11px;color:var(--mid);margin-top:3px">${k.s}</div>
+  </div>`).join('');
+
+  // Monthly trend chart
+  const aByM={}, bByM={};
+  allA.forEach(r=>{ const m=pfRowMonth(r); if(m) aByM[m]=(aByM[m]||0)+1; });
+  allB.forEach(r=>{ const m=pfRowMonth(r); if(m) bByM[m]=(bByM[m]||0)+1; });
+  const months=MONTHS;
+  dc('chart-pf-trend');
+  const el=document.getElementById('chart-pf-trend');
+  if(el&&months.length){
+    CI['chart-pf-trend']=new Chart(el,{
+      type:'line',
+      data:{labels:months.map(m=>PF_MONTHS_LABELS[m]||m),datasets:[
+        {label:'Drop Off (A)',data:months.map(m=>aByM[m]||0),borderColor:PF_A_COLOR,backgroundColor:PF_A_COLOR+'18',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:PF_A_COLOR},
+        {label:'Payment Fail (B)',data:months.map(m=>bByM[m]||0),borderColor:PF_B_COLOR,backgroundColor:PF_B_COLOR+'18',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:PF_B_COLOR}
+      ]},
+      options:cOpts2()
+    });
+  }
+
+  // Overview table
+  const thCols=months.map(m=>`<th style="text-align:right;padding:5px 10px">${PF_MONTHS_LABELS[m]||m}</th>`).join('');
+  const rowA='<tr><td style="padding:5px 10px;white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+PF_A_COLOR+';margin-right:5px"></span>Drop Off (A)</td>'+months.map(m=>`<td style="text-align:right;padding:5px 10px">${(aByM[m]||0).toLocaleString()}</td>`).join('')+'<td style="text-align:right;font-weight:700;padding:5px 10px">'+allA.length.toLocaleString()+'</td></tr>';
+  const rowB='<tr><td style="padding:5px 10px;white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+PF_B_COLOR+';margin-right:5px"></span>Payment Fail (B)</td>'+months.map(m=>`<td style="text-align:right;padding:5px 10px">${(bByM[m]||0).toLocaleString()}</td>`).join('')+'<td style="text-align:right;font-weight:700;padding:5px 10px">'+allB.length.toLocaleString()+'</td></tr>';
+  document.getElementById('pf-ov-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:5px 10px">กลุ่ม</th>${thCols}<th style="text-align:right;padding:5px 10px;color:var(--mid)">รวม</th></tr></thead>
+    <tbody>${rowA}${rowB}</tbody>
+  </table>`;
+
+  // Insights
+  const growA=months.length>1&&(aByM[months[0]]||0)>0?((( aByM[months[months.length-2]]||0)-(aByM[months[0]]||0))/(aByM[months[0]]||1)*100).toFixed(0):null;
+  const growB=months.length>1&&(bByM[months[0]]||0)>0?(((bByM[months[months.length-2]]||0)-(bByM[months[0]]||0))/(bByM[months[0]]||1)*100).toFixed(0):null;
+  document.getElementById('pf-ov-insights').innerHTML=pfInsightHtml([
+    {cls:'background:#FFF0F0;border-left-color:#CC0000',title:'⚠ GMV ที่หลุดออกไปสูงกว่า Paid GMV '+ratio+' เท่า',sub:'Paid GMV '+fmt2(gmvPaid)+' บาท แต่ Failed GMV รวม '+fmt2(gmvA+gmvB)+' บาท — recovery แม้แค่ 30% คืน upside ~'+fmt2((gmvA+gmvB)*0.3)+' บาท'},
+    {cls:'background:#FFF5E6;border-left-color:#BA7517',title:'📈 Payment Fail (B) โตเร็วกว่า Drop Off (A)'+(growA&&growB?' — B +'+growB+'% vs A +'+growA+'%':''),sub:'ม.ค.–เม.ย. ถ้าไม่แก้ไข pattern จะสะสมตามปริมาณ order ที่เพิ่มขึ้น'},
+  ]);
+}
+
+function fmt2(n){
+  if(n>=1000000) return (n/1000000).toFixed(1)+'M';
+  if(n>=1000) return (n/1000).toFixed(1)+'K';
+  return Math.round(n).toLocaleString();
+}
+
+// ── Filter chips builder ─────────────────────────────────────
+function pfBuildChips(wrapId, selSet, onChangeFn, colorClass){
+  const allJourneys=new Set();
+  pfGetRows().forEach(r=>{ const j=r._get('Order Type')||'Other'; if(j) allJourneys.add(j); });
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const allChip=document.createElement('span');
+  allChip.className='sc'+(selSet.has('all')?' on':''); allChip.textContent='All Journey';
+  allChip.onclick=function(){
+    selSet.clear(); selSet.add('all');
+    wrap.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
+    allChip.classList.add('on');
+    onChangeFn();
+  };
+  wrap.appendChild(allChip);
+  [...allJourneys].sort().forEach(j=>{
+    const c=document.createElement('span');
+    c.className='sc'+(selSet.has(j)?' on':'');
+    c.textContent=(function(j){
+      if(j.startsWith('device_bundle_')) return 'DVB '+j.replace('device_bundle_','').replace(/_/g,' ');
+      if(j.startsWith('sim_only_')) return 'SIM '+j.replace('sim_only_','').replace(/_/g,' ');
+      if(j==='single_product') return 'Single Product';
+      if(j==='device_only') return 'Device Only';
+      return j.replace(/_/g,' ');
+    })(j);
+    c.dataset.j=j;
+    c.onclick=function(){
+      selSet.delete('all');
+      wrap.querySelector('.sc').classList.remove('on');
+      if(c.classList.contains('on')){ c.classList.remove('on'); selSet.delete(j); }
+      else { c.classList.add('on'); selSet.add(j); }
+      if(selSet.size===0){ selSet.add('all'); wrap.querySelector('.sc').classList.add('on'); }
+      onChangeFn();
+    };
+    wrap.appendChild(c);
+  });
+}
+
+function pfBuildMonthChips(wrapId, selRef, setFn, onChangeFn){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  ['all',...MONTHS].forEach(m=>{
+    const c=document.createElement('span');
+    c.className='sc'+(selRef()===m?' on':'');
+    c.textContent=m==='all'?'All':(PF_MONTHS_LABELS[m]||m);
+    c.onclick=function(){
+      wrap.querySelectorAll('.sc').forEach(x=>x.classList.remove('on'));
+      c.classList.add('on');
+      setFn(m);
+      onChangeFn();
+    };
+    wrap.appendChild(c);
+  });
+}
+
+// ── Group A ──────────────────────────────────────────────────
+function renderPFGroupA(){
+  const rows=pfRows('A',_pfAJourneys,_pfAMonth);
+  const total=rows.length;
+  const gmv=pfGMV(rows);
+  const avgGmv=total>0?gmv/total:0;
+
+  // filter label
+  const jLabel=_pfAJourneys.has('all')?'ทุก Journey':Array.from(_pfAJourneys).join(', ');
+  const mLabel=_pfAMonth==='all'?'ทุกเดือน':(PF_MONTHS_LABELS[_pfAMonth]||_pfAMonth);
+  document.getElementById('pf-a-filter-label').innerHTML=`แสดง: <b>${jLabel} · ${mLabel}</b> — ${total.toLocaleString()} orders · GMV ${fmt2(gmv)} บาท`;
+
+  // Payment method bars
+  const methodCount={};
+  rows.forEach(r=>{
+    const raw=String(r._get('Payment - Method')||'-').trim();
+    const first=raw.split(',')[0].trim()||'-';
+    methodCount[first]=(methodCount[first]||0)+1;
+  });
+  const topMethods=Object.entries(methodCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxM=topMethods[0]?.[1]||1;
+  document.getElementById('pf-a-method-bars').innerHTML=`
+    <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Payment Method</div>
+    ${topMethods.map(([m,c])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <div style="width:140px;font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${m}</div>
+      <div style="flex:1;background:var(--bg);border-radius:3px;height:7px;overflow:hidden"><div style="height:100%;width:${Math.round(c/maxM*100)}%;background:${PF_A_COLOR};border-radius:3px"></div></div>
+      <div style="width:90px;text-align:right;font-size:11px;color:var(--dark)">${c.toLocaleString()} (${total>0?(c/total*100).toFixed(1):0}%)</div>
+    </div>`).join('')}`;
+
+  // Order type breakdown
+  const typeCount={}, typeGmv={};
+  rows.forEach(r=>{
+    const t=r._get('Order Type')||'Other';
+    typeCount[t]=(typeCount[t]||0)+1;
+    typeGmv[t]=(typeGmv[t]||0)+parseFloat(r._get('Total Payment')||0);
+  });
+  const topTypes=Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxT=topTypes[0]?.[1]||1;
+  document.getElementById('pf-a-content').innerHTML=`
+    <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-top:1px solid var(--border);padding-top:10px">Order Type</div>
+    ${topTypes.map(([t,c])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <div style="width:150px;font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${t}</div>
+      <div style="flex:1;background:var(--bg);border-radius:3px;height:7px;overflow:hidden"><div style="height:100%;width:${Math.round(c/maxT*100)}%;background:${PF_A_COLOR};border-radius:3px;opacity:.75"></div></div>
+      <div style="width:120px;text-align:right;font-size:11px;color:var(--dark)">${c.toLocaleString()} · avg ${fmt2(typeGmv[t]/c)} ฿</div>
+    </div>`).join('')}`;
+
+  // Table
+  const tblRows=topTypes.map(([t,c])=>`<tr style="border-bottom:0.5px solid var(--border)">
+    <td style="padding:6px 10px;font-size:12px">${t}</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${c.toLocaleString()}</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${total>0?(c/total*100).toFixed(1):0}%</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${typeGmv[t]?fmt2(typeGmv[t]/c):'–'}</td>
+  </tr>`).join('');
+  document.getElementById('pf-a-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Order Type</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Orders</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">%</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">avg GMV (บาท)</th></tr></thead>
+    <tbody>${tblRows}<tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)"><td style="padding:6px 10px;font-size:12px">รวม</td><td style="text-align:right;padding:6px 10px;font-size:12px">${total.toLocaleString()}</td><td style="text-align:right;padding:6px 10px;font-size:12px">100%</td><td style="text-align:right;padding:6px 10px;font-size:12px">${fmt2(avgGmv)}</td></tr></tbody>
+  </table>`;
+
+  // Insights (dynamic)
+  const tmnCount=rows.filter(r=>String(r._get('Payment - Method')||'').includes('tmnPayNextExtra')).length;
+  const tmnPct=total>0?(tmnCount/total*100).toFixed(0):0;
+  const multiMethod=rows.filter(r=>(String(r._get('Payment - Method')||'').match(/,/g)||[]).length>0).length;
+  const highValTypes=['single_product','device_bundle_existing','device_bundle_new','device_bundle_p2p'];
+  const highValCount=rows.filter(r=>highValTypes.includes(r._get('Order Type')||'')).length;
+  const highValPct=total>0?(highValCount/total*100).toFixed(0):0;
+  document.getElementById('pf-a-insights').innerHTML=pfInsightHtml([
+    {cls:'background:#FFF5E6;border-left-color:#BA7517',title:`💳 tmnPayNextExtra คิดเป็น ${tmnPct}% ของ Drop Off ที่เลือก (${tmnCount.toLocaleString()} orders)`,sub:'ควรตรวจสอบ session timeout และ webhook callback ของ tmnPayNextExtra เป็น priority แรก'},
+    {cls:'background:#FFF0F0;border-left-color:#CC0000',title:`📦 High-value order type รวม ${highValPct}% · avg GMV ${fmt2(avgGmv)} บาท/order`,sub:'single_product + device_bundle รวมกันเป็นสัดส่วนใหญ่ — ควร prioritize recovery flow สำหรับกลุ่มนี้ก่อน'},
+    {cls:'background:#E6F1FB;border-left-color:#185FA5',title:`🔁 ${multiMethod.toLocaleString()} orders มีการ retry payment แต่ยังหลุด (${total>0?(multiMethod/total*100).toFixed(1):0}%)`,sub:'user พยายามซ้ำหลายครั้งแต่ยังไม่ผ่าน — บ่งชี้ปัญหาอยู่ที่ระบบ ไม่ใช่ที่ตัว user'},
+  ]);
+}
+
+// ── Group B ──────────────────────────────────────────────────
+function renderPFGroupB(){
+  const rows=pfRows('B',_pfBJourneys,_pfBMonth);
+  const total=rows.length;
+  const gmv=pfGMV(rows);
+  const avgGmv=total>0?gmv/total:0;
+
+  const jLabel=_pfBJourneys.has('all')?'ทุก Journey':Array.from(_pfBJourneys).join(', ');
+  const mLabel=_pfBMonth==='all'?'ทุกเดือน':(PF_MONTHS_LABELS[_pfBMonth]||_pfBMonth);
+  document.getElementById('pf-b-filter-label').innerHTML=`แสดง: <b>${jLabel} · ${mLabel}</b> — ${total.toLocaleString()} orders · GMV ${fmt2(gmv)} บาท`;
+
+  // Fail reason breakdown
+  const reasonCount={}, reasonGmv={};
+  rows.forEach(r=>{
+    const raw=String(r._get('Payment Fail Description Final')||'').trim();
+    const first=raw.split('|')[0].trim()||'unknown';
+    reasonCount[first]=(reasonCount[first]||0)+1;
+    reasonGmv[first]=(reasonGmv[first]||0)+parseFloat(r._get('Total Payment')||0);
+  });
+  const topReasons=Object.entries(reasonCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxR=topReasons[0]?.[1]||1;
+
+  document.getElementById('pf-b-content').innerHTML=`
+    <div style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Fail Reason (first attempt)</div>
+    ${topReasons.map(([r,c])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <div style="width:190px;font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${r}">${r}</div>
+      <div style="flex:1;background:var(--bg);border-radius:3px;height:7px;overflow:hidden"><div style="height:100%;width:${Math.round(c/maxR*100)}%;background:${PF_B_COLOR};border-radius:3px;opacity:.75"></div></div>
+      <div style="width:120px;text-align:right;font-size:11px;color:var(--dark)">${c.toLocaleString()} · avg ${reasonGmv[r]?fmt2(reasonGmv[r]/c):'–'} ฿</div>
+    </div>`).join('')}`;
+
+  // Table
+  const tblRows=topReasons.map(([r,c])=>`<tr style="border-bottom:0.5px solid var(--border)">
+    <td style="padding:6px 10px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r}">${r}</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${c.toLocaleString()}</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${total>0?(c/total*100).toFixed(1):0}%</td>
+    <td style="text-align:right;padding:6px 10px;font-size:12px">${reasonGmv[r]?fmt2(reasonGmv[r]/c):'–'}</td>
+  </tr>`).join('');
+  document.getElementById('pf-b-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Fail Reason</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Orders</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">%</th><th style="text-align:right;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">avg GMV (บาท)</th></tr></thead>
+    <tbody>${tblRows}<tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)"><td style="padding:6px 10px;font-size:12px">รวม</td><td style="text-align:right;padding:6px 10px;font-size:12px">${total.toLocaleString()}</td><td style="text-align:right;padding:6px 10px;font-size:12px">100%</td><td style="text-align:right;padding:6px 10px;font-size:12px">${fmt2(avgGmv)}</td></tr></tbody>
+  </table>`;
+
+  // Insights
+  const app4in1=rows.filter(r=>String(r._get('Payment Fail Description Final')||'').startsWith('Not accept app4in1')).length;
+  const app4Pct=total>0?(app4in1/total*100).toFixed(0):0;
+  const insuf=rows.filter(r=>String(r._get('Payment Fail Description Final')||'').split('|')[0].trim()==='insufficient balance').length;
+  const insufAvg=insuf>0?pfGMV(rows.filter(r=>String(r._get('Payment Fail Description Final')||'').split('|')[0].trim()==='insufficient balance'))/insuf:0;
+  const retry=rows.filter(r=>(String(r._get('Payment Fail Description Final')||'').match(/\|/g)||[]).length>=1).length;
+  const cancelled=rows.filter(r=>String(r._get('Payment Fail Description Final')||'').split('|')[0].trim()==='payment cancelled by payer').length;
+  document.getElementById('pf-b-insights').innerHTML=pfInsightHtml([
+    {cls:'background:#FFF0F0;border-left-color:#CC0000',title:`📱 "Not accept app4in1" ${app4Pct}% (${app4in1.toLocaleString()} orders) — แก้ได้ที่ UX ไม่ใช่ Gateway`,sub:'ลูกค้าไม่ยอมรับ T&C ใน app4in1 ก่อนชำระ — ควรปรับ consent flow, default checkbox หรือ UX copy'},
+    {cls:'background:#FFF5E6;border-left-color:#BA7517',title:`💰 insufficient balance avg GMV ${fmt2(insufAvg)} บาท — มี intent แต่เงินไม่พอ`,sub:`${insuf.toLocaleString()} orders · ส่วนใหญ่เป็น device + prepaid — ควรพิจารณา installment nudge หรือ offer plan ราคาต่ำกว่า`},
+    {cls:'background:#E6F1FB;border-left-color:#185FA5',title:`🔁 ${retry.toLocaleString()} orders retry ≥2 ครั้งแต่ยังล้มเหลว — ควร offer payment method อื่น`,sub:'ส่วนใหญ่เจอ 3d secure / payment rejected ซ้ำ — ควร trigger alternative payment หลัง retry ครั้งที่ 2'},
+    {cls:'background:#F0FAF5;border-left-color:#0A6E45',title:`✅ "payment cancelled by payer" ${cancelled.toLocaleString()} orders — user เปลี่ยนใจเอง`,sub:'มี intent แต่ยกเลิกกลางคัน — ควรทำ abandoned cart reminder หรือ re-engagement campaign'},
+  ]);
+}
+
+// ── Init all PF sections ─────────────────────────────────────
+function renderPayFailAnalysis(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return;
+  // check TOS-New has Total Payment col
+  const sample=RAW_ROWS.find(r=>r._sheet==='TOS-New');
+  if(!sample) return;
+
+  renderPFOverview();
+
+  // Build Group A chips
+  pfBuildChips('pf-a-j-chips',_pfAJourneys,renderPFGroupA,'amber');
+  pfBuildMonthChips('pf-a-m-chips',()=>_pfAMonth,(v)=>{_pfAMonth=v;},renderPFGroupA);
+  renderPFGroupA();
+
+  // Build Group B chips
+  pfBuildChips('pf-b-j-chips',_pfBJourneys,renderPFGroupB,'red');
+  pfBuildMonthChips('pf-b-m-chips',()=>_pfBMonth,(v)=>{_pfBMonth=v;},renderPFGroupB);
+  renderPFGroupB();
+}
+
+// ============================================================
+// STACKED CHARTS v3.09 — Confirmed vs Drop Off (A) & Fail (B)
+// ============================================================
+const PF_C_MONTHS_TH={'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+
+// Filter state for each chart
+let _pfc1J=new Set(['all']), _pfc1M='all';
+let _pfc2J=new Set(['all']), _pfc2M='all';
+
+function pfToggleInfo(id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
+function pfToggleTbl(id,btnId){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.toggle('show');
+  const btn=document.getElementById(btnId);
+  if(btn)btn.textContent=el.classList.contains('show')?'ตาราง ▴':'ตาราง ▾';
+}
+function pfToggleFilter(panelId){
+  const body=document.getElementById(panelId.replace('-fp','-body'));
+  const chev=document.getElementById(panelId.replace('-fp','-chev'));
+  if(body){body.classList.toggle('open');}
+  if(chev){chev.classList.toggle('open');}
+}
+
+// Get RAW_ROWS for TOS-New with Total Payment > 0
+function pfcGetBase(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return [];
+  return RAW_ROWS.filter(r=>{
+    if(r._sheet!=='TOS-New') return false;
+    return parseFloat(r._get('Total Payment')||0)>0;
+  });
+}
+
+function pfcClassify(r){
+  const ps=String(r._get('PaymentStage')||'').trim();
+  const fai=String(r._get('Fai_Order Stage')||'').trim();
+  const desc=String(r._get('Payment Fail Description Final')||'').trim();
+  if(fai==='In-Progress'||fai==='Completed') return 'confirmed';
+  if(ps==='Failed'&&desc==='-') return 'dropoff';
+  if(ps==='Failed'&&desc!=='-') return 'fail';
+  return 'other';
+}
+
+function pfcRowMonth(r){
+  const day=r._get('__day')||'';
+  if(day&&day.length>=7) return day.slice(0,7);
+  const d=r._get('Date')||'';
+  const m=String(d).trim().match(/^(\d{4})-(\d{2})/);
+  return m?m[1]+'-'+m[2]:'';
+}
+
+function pfcGetJourneys(){
+  const s=new Set();
+  pfcGetBase().forEach(r=>{ const j=r._get('Order Type')||''; if(j) s.add(j); });
+  return [...s].sort();
+}
+
+function pfcFilter(rows, journeySet, month){
+  return rows.filter(r=>{
+    if(!journeySet.has('all')&&!journeySet.has(r._get('Order Type')||'')) return false;
+    if(month!=='all'&&pfcRowMonth(r)!==month) return false;
+    return true;
+  });
+}
+
+function pfcBuildFilterBadge(jSet, month){
+  const jLabel=jSet.has('all')?'ทุก Journey':[...jSet].map(j=>j.replace('device_bundle_','').replace('sim_only_','')).join(', ');
+  const mLabel=month==='all'?'ทุกเดือน':(PF_C_MONTHS_TH[month]||month);
+  return `${jLabel} · ${mLabel}`;
+}
+
+function pfcBuildJChips(wrapId, jSet, onChange){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const allChip=document.createElement('span');
+  allChip.className='sc'+(jSet.has('all')?' on':'');
+  allChip.textContent='All Journey';
+  allChip.onclick=function(){
+    jSet.clear(); jSet.add('all');
+    wrap.querySelectorAll('.sc').forEach(x=>x.classList.remove('on'));
+    allChip.classList.add('on');
+    onChange();
+  };
+  wrap.appendChild(allChip);
+  pfcGetJourneys().forEach(j=>{
+    const chip=document.createElement('span');
+    chip.className='sc'+(jSet.has(j)?' on':'');
+    chip.textContent=(function(j){
+        if(j.startsWith('device_bundle_')) return 'DVB '+j.replace('device_bundle_','').replace(/_/g,' ');
+        if(j.startsWith('sim_only_')) return 'SIM '+j.replace('sim_only_','').replace(/_/g,' ');
+        if(j==='single_product') return 'Single Product';
+        if(j==='device_only') return 'Device Only';
+        return j.replace(/_/g,' ');
+      })(j);
+    chip.onclick=function(){
+      jSet.delete('all');
+      wrap.querySelector('.sc').classList.remove('on');
+      if(chip.classList.contains('on')){chip.classList.remove('on');jSet.delete(j);}
+      else{chip.classList.add('on');jSet.add(j);}
+      if(jSet.size===0){jSet.add('all');wrap.querySelector('.sc').classList.add('on');}
+      onChange();
+    };
+    wrap.appendChild(chip);
+  });
+}
+
+function pfcBuildMChips(wrapId, getM, setM, onChange){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  ['all',...MONTHS].forEach(m=>{
+    const chip=document.createElement('span');
+    chip.className='sc'+(getM()===m?' on':'');
+    chip.textContent=m==='all'?'All':(PF_C_MONTHS_TH[m]||m);
+    chip.onclick=function(){
+      wrap.querySelectorAll('.sc').forEach(x=>x.classList.remove('on'));
+      chip.classList.add('on');
+      setM(m);
+      onChange();
+    };
+    wrap.appendChild(chip);
+  });
+}
+
+function pfcBuildChart(canvasId, labels, confirmedPct, groupPct, groupColor, groupLabel){
+  dc(canvasId);
+  const el=document.getElementById(canvasId);
+  if(!el) return;
+  const isDark=false;
+  const gridCol='rgba(0,0,0,0.04)';
+  const tickCol='#7F7F7F';
+  const opts=cOpts2();
+  opts.scales.x.stacked=true;
+  opts.scales.y.stacked=true;
+  opts.scales.y.max=100;
+  opts.scales.y.ticks={...opts.scales.y.ticks,callback:v=>v+'%'};
+  opts.scales.x.ticks.autoSkip=false;
+  opts.plugins.tooltip={mode:'index',intersect:false,callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`}};
+  opts.plugins.legend={display:false};
+  CI[canvasId]=new Chart(el,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Confirmed',data:confirmedPct,backgroundColor:'#3B6D11',borderRadius:0,borderSkipped:false},
+        {label:groupLabel,data:groupPct,backgroundColor:groupColor,borderRadius:0,borderSkipped:false}
+      ]
+    },
+    options:opts
+  });
+}
+
+function pfcBuildTable(elId, monthLabels, confirmedArr, groupArr, groupLabel, groupColor){
+  const el=document.getElementById(elId);
+  if(!el) return;
+  const totals=monthLabels.map((_,i)=>confirmedArr[i]+groupArr[i]);
+  const groupPct=monthLabels.map((_,i)=>totals[i]>0?(groupArr[i]/totals[i]*100).toFixed(1):0);
+  const pctColor=v=>parseFloat(v)>30?'#CC0000':parseFloat(v)>15?'#BA7517':'#0A6E45';
+
+  const rows=monthLabels.map((m,i)=>`<tr style="border-bottom:0.5px solid var(--border)">
+    <td style="padding:5px 10px;font-size:12px">${m}</td>
+    <td style="text-align:right;padding:5px 10px;font-size:12px">${confirmedArr[i].toLocaleString()}</td>
+    <td style="text-align:right;padding:5px 10px;font-size:12px">${groupArr[i].toLocaleString()}</td>
+    <td style="text-align:right;padding:5px 10px;font-size:12px">${totals[i].toLocaleString()}</td>
+    <td style="text-align:right;padding:5px 10px;font-size:12px;font-weight:700;color:${pctColor(groupPct[i])}">${groupPct[i]}%</td>
+  </tr>`).join('');
+
+  const sumConf=confirmedArr.reduce((a,b)=>a+b,0);
+  const sumGrp=groupArr.reduce((a,b)=>a+b,0);
+  const sumTot=sumConf+sumGrp;
+  const sumPct=sumTot>0?(sumGrp/sumTot*100).toFixed(1):0;
+
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เดือน</th>
+      <th style="text-align:right;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Confirmed</th>
+      <th style="text-align:right;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">${groupLabel}</th>
+      <th style="text-align:right;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">รวม</th>
+      <th style="text-align:right;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">% ${groupLabel}</th>
+    </tr></thead>
+    <tbody>${rows}
+    <tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)">
+      <td style="padding:5px 10px;font-size:12px">รวม</td>
+      <td style="text-align:right;padding:5px 10px;font-size:12px">${sumConf.toLocaleString()}</td>
+      <td style="text-align:right;padding:5px 10px;font-size:12px">${sumGrp.toLocaleString()}</td>
+      <td style="text-align:right;padding:5px 10px;font-size:12px">${sumTot.toLocaleString()}</td>
+      <td style="text-align:right;padding:5px 10px;font-size:12px;color:${pctColor(sumPct)}">${sumPct}%</td>
+    </tr></tbody>
+  </table>`;
+}
+
+function pfcInsight(items){
+  return items.map(({bg,bc,title,sub})=>
+    `<div style="display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border-radius:0 8px 8px 0;border-left:3px solid ${bc};background:${bg};margin-bottom:0">
+      <div><div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:2px">${title}</div>
+      <div style="font-size:11px;color:var(--mid);line-height:1.5">${sub}</div></div>
+    </div>`).join('');
+}
+
+// ── Render Chart 1 ──────────────────────────────────────────
+function renderPFC1(){
+  const base=pfcGetBase();
+  const filtered=pfcFilter(base,_pfc1J,_pfc1M);
+
+  // aggregate by month
+  const confByM={}, dropByM={};
+  filtered.forEach(r=>{
+    const g=pfcClassify(r);
+    if(g!=='confirmed'&&g!=='dropoff') return;
+    const m=pfcRowMonth(r);
+    if(!m) return;
+    if(g==='confirmed') confByM[m]=(confByM[m]||0)+1;
+    else dropByM[m]=(dropByM[m]||0)+1;
+  });
+
+  // months to display
+  const months=_pfc1M==='all'?MONTHS:[_pfc1M];
+  const monthLabels=months.map(m=>PF_C_MONTHS_TH[m]||m);
+  const confArr=months.map(m=>confByM[m]||0);
+  const dropArr=months.map(m=>dropByM[m]||0);
+  const totArr=months.map((_,i)=>confArr[i]+dropArr[i]);
+  const confPct=months.map((_,i)=>totArr[i]>0?Math.round(confArr[i]/totArr[i]*1000)/10:0);
+  const dropPct=months.map((_,i)=>totArr[i]>0?Math.round(dropArr[i]/totArr[i]*1000)/10:0);
+
+  // update filter badge
+  const badge=document.getElementById('pf-c1-badge');
+  const label=pfcBuildFilterBadge(_pfc1J,_pfc1M);
+  if(badge){
+    badge.textContent=label;
+    badge.classList.toggle('active-filter',!_pfc1J.has('all')||_pfc1M!=='all');
+  }
+  const totalConf=confArr.reduce((a,b)=>a+b,0);
+  const totalDrop=dropArr.reduce((a,b)=>a+b,0);
+  const sumEl=document.getElementById('pf-c1-summary');
+  if(sumEl) sumEl.innerHTML=`แสดง: <b>${label}</b> — Confirmed ${totalConf.toLocaleString()} · Drop Off ${totalDrop.toLocaleString()} orders`;
+
+  pfcBuildChart('chart-pf-c1',monthLabels,confPct,dropPct,'#BA7517','Drop Off (A)');
+  pfcBuildTable('pf-c1-tbl',monthLabels,confArr,dropArr,'Drop Off (A)','#BA7517');
+
+  // insights
+  const maxDropPct=Math.max(...dropPct);
+  const minDropPct=Math.min(...dropPct.filter(v=>v>0));
+  const worstMonth=monthLabels[dropPct.indexOf(maxDropPct)];
+  const bestMonth=monthLabels[dropPct.indexOf(minDropPct)];
+  document.getElementById('pf-c1-insights').innerHTML=pfcInsight([
+    {bg:'#FFF0F0',bc:'#CC0000',
+     title:`⚠ ${worstMonth} Drop Off สูงสุด ${maxDropPct}% ของ orders ในกลุ่มนี้`,
+     sub:`${dropByM[months[dropPct.indexOf(maxDropPct)]]||0} orders ที่ควรจะ Confirmed กลับ drop — ตรวจสอบ gateway callback และ session timeout`},
+    {bg:'#F0FAF5',bc:'#0A6E45',
+     title:`✅ ${bestMonth} Drop Off ลดเหลือ ${minDropPct}% — ดีที่สุดในช่วงที่เลือก`,
+     sub:`Confirmed โตเร็วกว่า Drop Off มาก — แต่ยังมี GMV หลุดออกไปที่ควร recover ได้`},
+  ]);
+}
+
+// ── Render Chart 2 ──────────────────────────────────────────
+function renderPFC2(){
+  const base=pfcGetBase();
+  const filtered=pfcFilter(base,_pfc2J,_pfc2M);
+
+  const confByM={}, failByM={};
+  filtered.forEach(r=>{
+    const g=pfcClassify(r);
+    if(g!=='confirmed'&&g!=='fail') return;
+    const m=pfcRowMonth(r);
+    if(!m) return;
+    if(g==='confirmed') confByM[m]=(confByM[m]||0)+1;
+    else failByM[m]=(failByM[m]||0)+1;
+  });
+
+  const months=_pfc2M==='all'?MONTHS:[_pfc2M];
+  const monthLabels=months.map(m=>PF_C_MONTHS_TH[m]||m);
+  const confArr=months.map(m=>confByM[m]||0);
+  const failArr=months.map(m=>failByM[m]||0);
+  const totArr=months.map((_,i)=>confArr[i]+failArr[i]);
+  const confPct=months.map((_,i)=>totArr[i]>0?Math.round(confArr[i]/totArr[i]*1000)/10:0);
+  const failPct=months.map((_,i)=>totArr[i]>0?Math.round(failArr[i]/totArr[i]*1000)/10:0);
+
+  const badge=document.getElementById('pf-c2-badge');
+  const label=pfcBuildFilterBadge(_pfc2J,_pfc2M);
+  if(badge){
+    badge.textContent=label;
+    badge.classList.toggle('active-filter',!_pfc2J.has('all')||_pfc2M!=='all');
+  }
+  const totalConf=confArr.reduce((a,b)=>a+b,0);
+  const totalFail=failArr.reduce((a,b)=>a+b,0);
+  const sumEl=document.getElementById('pf-c2-summary');
+  if(sumEl) sumEl.innerHTML=`แสดง: <b>${label}</b> — Confirmed ${totalConf.toLocaleString()} · Payment Fail ${totalFail.toLocaleString()} orders`;
+
+  pfcBuildChart('chart-pf-c2',monthLabels,confPct,failPct,'#A32D2D','Payment Fail (B)');
+  pfcBuildTable('pf-c2-tbl',monthLabels,confArr,failArr,'Payment Fail (B)','#A32D2D');
+
+  // insights — detect plateau (ก.พ.–มี.ค. flat pattern)
+  const maxFailPct=Math.max(...failPct);
+  const worstMonth=monthLabels[failPct.indexOf(maxFailPct)];
+  // check if any 2 consecutive months are within 2% of each other
+  let plateauMsg='';
+  for(let i=1;i<failPct.length;i++){
+    if(Math.abs(failPct[i]-failPct[i-1])<=2&&failPct[i]>15){
+      plateauMsg=`${monthLabels[i-1]}–${monthLabels[i]} Fail rate ทรงตัวสูง ${failPct[i-1]}%→${failPct[i]}% — root cause ยังไม่ถูกแก้ในช่วงนั้น`;
+      break;
+    }
+  }
+  document.getElementById('pf-c2-insights').innerHTML=pfcInsight([
+    {bg:'#FFF0F0',bc:'#CC0000',
+     title:`⚠ ${worstMonth} Payment Fail สูงสุด ${maxFailPct}% ของ orders ในกลุ่มนี้`,
+     sub:`${failByM[months[failPct.indexOf(maxFailPct)]]||0} orders · ส่วนใหญ่เกิดจาก "Not accept app4in1" และ insufficient balance`},
+    plateauMsg?{bg:'#FFF5E6',bc:'#BA7517',title:`📌 ${plateauMsg}`,sub:'ต่างจาก Drop Off ที่ลดต่อเนื่อง — Payment Fail ต้องการ fix ที่ UX consent flow และ gateway logic'}
+      :{bg:'#F0FAF5',bc:'#0A6E45',title:'✅ Payment Fail ลดลงต่อเนื่องในช่วงที่เลือก',sub:'Confirmed volume โตเร็วกว่า — ควรติดตาม fail rate ต่อไปเพื่อยืนยัน trend'},
+  ]);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+function renderStackedCharts(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return;
+  const sample=RAW_ROWS.find(r=>r._sheet==='TOS-New');
+  if(!sample) return;
+
+  pfcBuildJChips('pf-c1-jchips',_pfc1J,renderPFC1);
+  pfcBuildMChips('pf-c1-mchips',()=>_pfc1M,(v)=>{_pfc1M=v;},renderPFC1);
+  renderPFC1();
+
+  pfcBuildJChips('pf-c2-jchips',_pfc2J,renderPFC2);
+  pfcBuildMChips('pf-c2-mchips',()=>_pfc2M,(v)=>{_pfc2M=v;},renderPFC2);
+  renderPFC2();
+}
+
+// ============================================================
+// FAIL REASON TREND v3.10
+// ============================================================
+const FRT_DEVICE_JOURNEYS=['device_bundle_existing','device_bundle_new','device_bundle_p2p','device_only','single_product'];
+const FRT_COLORS={
+  'Not accept app4in1':'#A32D2D',
+  'payment rejected':'#BA7517',
+  'payment cancelled by payer':'#185FA5',
+  'insufficient balance':'#3B6D11',
+  '3d secure authentication failed':'#7F77DD',
+  'Not accept T&C':'#888780',
+  'failed processing':'#CC8800',
+  'the account is invalid':'#5C4A2A',
+  'Issuer Declined : Suspected Fraud - Pick Up Card':'#534AB7',
+};
+const FRT_MONTHS_TH={'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+const FRT_INSIGHTS={
+  'Not accept app4in1':{badge:'Spike → ลด',bc:'#FCEBEB',fc:'#A32D2D',
+    fn:(vals,months)=>{
+      const peak=Math.max(...vals), peakM=FRT_MONTHS_TH[months[vals.indexOf(peak)]]||'';
+      const first=vals[0],last=vals[vals.length-1];
+      const grow=first>0?Math.round((peak-first)/first*100):0;
+      return `โตแรง ม.ค.→${peakM} +${grow}% → ลดลง พ.ค. · <b>เฉพาะ DVB ทั้งหมด</b> ไม่มี single_product เลย · T&C flow ถูก merge เข้า app4in1 ใน มี.ค. ทำให้ peaked สูง`;
+    }},
+  'payment rejected':{badge:'ไม่ลด',bc:'#FAEEDA',fc:'#854F0B',
+    fn:(vals,months)=>{
+      const max=Math.max(...vals), maxM=FRT_MONTHS_TH[months[vals.indexOf(max)]]||'';
+      return `<b>เพิ่มต่อเนื่อง ม.ค.→${maxM}</b> (${vals[0]}→${max}) ขณะที่ reason อื่นลดแล้ว · avg GMV สูงสุด 32,820฿ · ส่วนใหญ่ single_product · ควรตรวจสอบ gateway rejection rule`;
+    }},
+  'payment cancelled by payer':{badge:'User เปลี่ยนใจ',bc:'#E6F1FB',fc:'#0C447C',
+    fn:(vals)=>`<b>User ยกเลิกเอง</b> มี intent แต่เปลี่ยนใจกลางคัน avg 34,100฿ · ควรทำ abandoned cart reminder / re-engagement campaign หลัง cancel`},
+  'insufficient balance':{badge:'truemoney 75%',bc:'#EAF3DE',fc:'#3B6D11',
+    fn:(vals)=>`<b>75% ใช้ truemoney wallet ซื้อ device ~26K฿</b> แต่ยอดไม่พอ · DVB existing 44% · ควรแสดง wallet balance ก่อนหน้า payment · พิจารณา installment nudge`},
+  '3d secure authentication failed':{badge:'เม.ย. spike',bc:'#EEEDFE',fc:'#534AB7',
+    fn:(vals,months)=>{
+      const max=Math.max(...vals), maxM=FRT_MONTHS_TH[months[vals.indexOf(max)]]||'';
+      return `Flat ม.ค.–มี.ค. แล้ว <b>spike ${maxM} ${max} orders</b> · 66% installment · 30% ccw · single_product โตชัดใน เม.ย. · ปัญหา 3DS ของ credit card/installment`;
+    }},
+  'Not accept T&C':{badge:'หายหลัง ก.พ.',bc:'#F5F5F5',fc:'#5F5E5A',
+    fn:(vals)=>`ม.ค. ${vals[0]}, ก.พ. ${vals[1]||0} → 0 ทุกเดือนถัดมา · <b>ถูก merge เข้า app4in1 flow ใน มี.ค.</b> อธิบายว่าทำไม app4in1 พุ่งสูงใน มี.ค.`},
+  'Issuer Declined : Suspected Fraud - Pick Up Card':{badge:'avg 68,077฿',bc:'#EEEDFE',fc:'#534AB7',
+    fn:(vals)=>`<b>avg GMV สูงสุด 68,077฿ · 100% CCW</b> · หลายรายมี retry ccw,ccw,ccw · ธนาคาร flag suspected fraud · ควรแจ้ง fraud team ตรวจสอบ CCW + high-value pattern`},
+};
+
+let _frtJ=new Set(FRT_DEVICE_JOURNEYS);
+let _frtM='all';
+
+function frtToggleInfo(){document.getElementById('frt-info').classList.toggle('open');}
+function frtToggleTbl(){
+  const el=document.getElementById('frt-tbl');
+  el.classList.toggle('show');
+  const btn=document.getElementById('frt-tbl-btn');
+  if(btn) btn.textContent=el.classList.contains('show')?'ตาราง ▴':'ตาราง ▾';
+}
+function frtToggleFilter(){
+  const body=document.getElementById('frt-body');
+  const chev=document.getElementById('frt-chev');
+  body.classList.toggle('open');
+  if(chev) chev.classList.toggle('open');
+}
+
+function frtRowMonth(r){
+  const day=r._get('__day')||'';
+  if(day&&day.length>=7) return day.slice(0,7);
+  const d=r._get('Date')||'';
+  const m=String(d).trim().match(/^(\d{4})-(\d{2})/);
+  return m?m[1]+'-'+m[2]:'';
+}
+
+function frtJLabel(j){
+  if(j.startsWith('device_bundle_')) return 'DVB '+j.replace('device_bundle_','').replace(/_/g,' ');
+  if(j==='device_only') return 'Device Only';
+  if(j==='single_product') return 'Single Product';
+  return j.replace(/_/g,' ');
+}
+
+function frtGetRows(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return [];
+  return RAW_ROWS.filter(r=>{
+    if(r._sheet!=='TOS-New') return false;
+    if(parseFloat(r._get('Total Payment')||0)<=0) return false;
+    if(String(r._get('PaymentStage')||'').trim()!=='Failed') return false;
+    const desc=String(r._get('Payment Fail Description Final')||'').trim();
+    if(desc==='-') return false;
+    const ot=r._get('Order Type')||'';
+    if(!_frtJ.has(ot)) return false;
+    if(_frtM!=='all'&&frtRowMonth(r)!==_frtM) return false;
+    return true;
+  });
+}
+
+function frtBuildChips(){
+  // Journey chips — default DVB+single product
+  const jWrap=document.getElementById('frt-jchips');
+  if(!jWrap) return;
+  jWrap.innerHTML='';
+  // collect all available journeys from raw
+  const allJ=new Set();
+  (RAW_ROWS||[]).forEach(r=>{
+    if(r._sheet!=='TOS-New') return;
+    if(parseFloat(r._get('Total Payment')||0)<=0) return;
+    if(String(r._get('PaymentStage')||'').trim()!=='Failed') return;
+    if(String(r._get('Payment Fail Description Final')||'').trim()==='-') return;
+    const ot=r._get('Order Type')||'';
+    if(ot) allJ.add(ot);
+  });
+
+  [...allJ].sort().forEach(j=>{
+    const chip=document.createElement('span');
+    chip.className='sc'+(_frtJ.has(j)?' on':'');
+    chip.textContent=frtJLabel(j);
+    chip.onclick=function(){
+      if(chip.classList.contains('on')){ chip.classList.remove('on'); _frtJ.delete(j); }
+      else { chip.classList.add('on'); _frtJ.add(j); }
+      if(_frtJ.size===0){
+        // prevent empty — re-add all device
+        FRT_DEVICE_JOURNEYS.forEach(x=>_frtJ.add(x));
+        jWrap.querySelectorAll('.sc').forEach(c=>{ if(FRT_DEVICE_JOURNEYS.includes(c._j)) c.classList.add('on'); });
+      }
+      renderFRT();
+    };
+    chip._j=j;
+    jWrap.appendChild(chip);
+  });
+
+  // Month chips
+  const mWrap=document.getElementById('frt-mchips');
+  if(!mWrap) return;
+  mWrap.innerHTML='';
+  ['all',...MONTHS].forEach(m=>{
+    const chip=document.createElement('span');
+    chip.className='sc'+(_frtM===m?' on':'');
+    chip.textContent=m==='all'?'All':(FRT_MONTHS_TH[m]||m);
+    chip.onclick=function(){
+      mWrap.querySelectorAll('.sc').forEach(x=>x.classList.remove('on'));
+      chip.classList.add('on');
+      _frtM=m;
+      renderFRT();
+    };
+    mWrap.appendChild(chip);
+  });
+}
+
+function renderFRT(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return;
+  const rows=frtGetRows();
+  const total=rows.length;
+
+  // filter badge
+  const jLabel=[..._frtJ].map(frtJLabel).join(', ');
+  const mLabel=_frtM==='all'?'ทุกเดือน':(FRT_MONTHS_TH[_frtM]||_frtM);
+  const badge=document.getElementById('frt-badge');
+  if(badge){ badge.textContent=jLabel+' · '+mLabel; }
+  const sumEl=document.getElementById('frt-sum');
+  if(sumEl) sumEl.innerHTML=`แสดง: <b>${jLabel} · ${mLabel}</b> — ${total.toLocaleString()} orders`;
+
+  // aggregate by reason x month
+  const months=_frtM==='all'?MONTHS:[_frtM];
+  const reasonCount={}, reasonGmv={}, reasonByMonth={};
+  rows.forEach(r=>{
+    const raw=String(r._get('Payment Fail Description Final')||'').trim();
+    const reason=raw.split('|')[0].trim()||'unknown';
+    const m=frtRowMonth(r);
+    const gmv=parseFloat(r._get('Total Payment')||0);
+    reasonCount[reason]=(reasonCount[reason]||0)+1;
+    reasonGmv[reason]=(reasonGmv[reason]||0)+gmv;
+    if(!reasonByMonth[reason]) reasonByMonth[reason]={};
+    reasonByMonth[reason][m]=(reasonByMonth[reason][m]||0)+1;
+  });
+
+  // top 6 reasons by count
+  const top6=Object.entries(reasonCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([r])=>r);
+
+  // Overview summary bar
+  const ovEl=document.getElementById('frt-overview');
+  if(ovEl){
+    ovEl.innerHTML=top6.map(r=>{
+      const cnt=reasonCount[r]||0;
+      const avg=cnt>0?Math.round(reasonGmv[r]/cnt):0;
+      const pct=total>0?(cnt/total*100).toFixed(0):0;
+      const color=FRT_COLORS[r]||'#5F5E5A';
+      // extra note
+      let note='';
+      if(r==='Not accept T&C') note='หาย มี.ค.';
+      else if(r==='payment rejected') note='ไม่ลด';
+      else if(r==='3d secure authentication failed') note='เม.ย. spike';
+      else note=`avg ${(avg/1000).toFixed(0)}K฿`;
+      return `<div style="background:var(--bg);border-radius:8px;padding:8px 10px;cursor:pointer;border:0.5px solid var(--border)">
+        <div style="font-size:9px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r}">${r.replace('payment cancelled by payer','pmt cancelled').replace('insufficient','insuf.').replace('authentication','auth').replace('Not accept','No accept').replace(' : Suspected Fraud - Pick Up Card','')}</div>
+        <div style="font-size:16px;font-weight:700;color:${color};line-height:1">${cnt.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--mid);margin-top:2px">${pct}% · ${note}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Main chart
+  dc('chart-frt-main');
+  const canv=document.getElementById('chart-frt-main');
+  if(canv&&months.length){
+    const datasets=top6.map(r=>{
+      const color=FRT_COLORS[r]||'#888';
+      const data=months.map(m=>(reasonByMonth[r]&&reasonByMonth[r][m])||0);
+      return{label:r,data,borderColor:color,backgroundColor:'transparent',tension:0.35,pointRadius:4,pointBackgroundColor:color,borderWidth:2.5,borderDash:r==='Not accept T&C'?[5,4]:[]};
+    });
+    const o=cOpts2();
+    o.plugins={...o.plugins,legend:{display:false},tooltip:{mode:'index',intersect:false}};
+    o.scales.x.ticks.autoSkip=false;
+    CI['chart-frt-main']=new Chart(canv,{type:'line',
+      data:{labels:months.map(m=>FRT_MONTHS_TH[m]||m),datasets},
+      options:o
+    });
+  }
+
+  // Legend
+  const legEl=document.getElementById('frt-legend');
+  if(legEl) legEl.innerHTML=top6.map(r=>{
+    const color=FRT_COLORS[r]||'#888';
+    const shortR=r.replace('payment cancelled by payer','pmt cancelled by payer').replace('authentication','auth').replace('Issuer Declined : Suspected Fraud - Pick Up Card','Suspected Fraud');
+    return `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:3px;vertical-align:middle"></span>${shortR}</span>`;
+  }).join('');
+
+  // Insight cards
+  const igEl=document.getElementById('frt-insight-grid');
+  if(igEl){
+    igEl.innerHTML=top6.map(r=>{
+      const cnt=reasonCount[r]||0;
+      const avg=cnt>0?Math.round(reasonGmv[r]/cnt):0;
+      const color=FRT_COLORS[r]||'#888';
+      const info=FRT_INSIGHTS[r];
+      const badge=info?.badge||'';
+      const bc=info?.bc||'var(--bg)';
+      const fc=info?.fc||color;
+      const vals=months.map(m=>(reasonByMonth[r]&&reasonByMonth[r][m])||0);
+      const insightText=info?.fn?info.fn(vals,months):`${cnt.toLocaleString()} orders · avg GMV ${avg.toLocaleString()}฿`;
+      return `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;border-left:3px solid ${color}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:700;color:var(--dark);line-height:1.3">${r.replace('Issuer Declined : Suspected Fraud - Pick Up Card','Suspected Fraud (CCW)')}</div>
+          ${badge?`<span style="font-size:10px;padding:1px 7px;border-radius:4px;font-weight:600;background:${bc};color:${fc};flex-shrink:0;white-space:nowrap">${badge}</span>`:''}
+        </div>
+        <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:6px;height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;font-size:10px;color:var(--mid)">
+          ${months.map((m,i)=>{
+            const v=vals[i];const max=Math.max(...vals,1);
+            const h=max>0?Math.round(v/max*100):0;
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;padding:0 1px">
+              <div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div>
+              <div style="width:100%;height:${h}%;min-height:${v>0?3:0}px;background:${color};border-radius:2px 2px 0 0;opacity:.75;margin-top:auto"></div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--mid);line-height:1.5">${insightText}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Table
+  const tblEl=document.getElementById('frt-tbl');
+  if(tblEl){
+    const thM=months.map(m=>`<th style="text-align:right;padding:5px 8px">${FRT_MONTHS_TH[m]||m}</th>`).join('');
+    const trows=top6.map(r=>{
+      const cnt=reasonCount[r]||0;
+      const avg=cnt>0?Math.round(reasonGmv[r]/cnt):0;
+      const color=FRT_COLORS[r]||'#888';
+      const mvals=months.map(m=>(reasonByMonth[r]&&reasonByMonth[r][m])||0);
+      return `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="padding:5px 10px;font-size:12px"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px;vertical-align:middle"></span>${r.replace('Issuer Declined : Suspected Fraud - Pick Up Card','Suspected Fraud')}</td>
+        ${mvals.map(v=>`<td style="text-align:right;padding:5px 8px;font-size:12px">${v||'–'}</td>`).join('')}
+        <td style="text-align:right;padding:5px 8px;font-size:12px;font-weight:700">${cnt.toLocaleString()}</td>
+        <td style="text-align:right;padding:5px 8px;font-size:12px;color:var(--mid)">${avg.toLocaleString()}฿</td>
+      </tr>`;
+    }).join('');
+    const sumVals=months.map(m=>top6.reduce((s,r)=>s+((reasonByMonth[r]&&reasonByMonth[r][m])||0),0));
+    tblEl.innerHTML=`<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Fail Reason</th>
+        ${thM}
+        <th style="text-align:right;padding:5px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">รวม</th>
+        <th style="text-align:right;padding:5px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">avg GMV</th>
+      </tr></thead>
+      <tbody>${trows}
+      <tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)">
+        <td style="padding:5px 10px;font-size:12px">รวม</td>
+        ${sumVals.map(v=>`<td style="text-align:right;padding:5px 8px;font-size:12px">${v.toLocaleString()}</td>`).join('')}
+        <td style="text-align:right;padding:5px 8px;font-size:12px">${total.toLocaleString()}</td>
+        <td style="text-align:right;padding:5px 8px;font-size:12px;color:var(--mid)">–</td>
+      </tr></tbody>
+    </table>`;
+  }
+}
+
+function initFRT(){
+  if(!RAW_ROWS||!RAW_ROWS.length) return;
+  const sample=RAW_ROWS.find(r=>r._sheet==='TOS-New');
+  if(!sample) return;
+  frtBuildChips();
+  renderFRT();
+}
+// ============================================================
+// END FAIL REASON TREND v3.10
+// ============================================================
+// ============================================================
+// END STACKED CHARTS v3.09
+// ============================================================
+// ============================================================
+// END PAYMENT FAIL ANALYSIS
+// ============================================================
+
+// ============================================================
 // END ORDER DAILY TREND
+// ============================================================
+
+
+// ============================================================
+// MODEL SCORECARD v3.12
+// ============================================================
+function toggleModelScInfo(){
+  const el=document.getElementById('model-sc-info');
+  if(el) el.classList.toggle('open');
+}
+
+function renderModelScorecard(){
+  if(!DATA||!MONTHS.length) return;
+  const threshold=parseFloat(document.getElementById('brand-threshold')?.value||50);
+  const topN=parseInt(document.getElementById('set-topn')?.value||5);
+
+  // Update label
+  const lbl=document.getElementById('model-topn-lbl');
+  if(lbl) lbl.textContent=topN;
+
+  // Merge prod data by status
+  // DATA.prod[st] = { month+'||'+brand : { model: count } }
+  const sts=getSts();
+  function mergeProd(){
+    const result={};
+    sts.forEach(st=>{
+      Object.entries(DATA.prod[st]||{}).forEach(([mkey,modelMap])=>{
+        const [month,brand]=mkey.split('||');
+        Object.entries(modelMap).forEach(([model,cnt])=>{
+          const key=model+'|||'+brand;
+          if(!result[key]) result[key]={};
+          result[key][month]=(result[key][month]||0)+cnt;
+        });
+      });
+    });
+    return result;
+  }
+
+  const prodMap=mergeProd();
+
+  // Sum across months → pick top N
+  const modelTotals={};
+  Object.entries(prodMap).forEach(([key,mMap])=>{
+    modelTotals[key]=Object.values(mMap).reduce((a,b)=>a+b,0);
+  });
+  const topModels=sortedTop(modelTotals,topN).map(e=>e[0]);
+
+  if(!topModels.length){
+    const el=document.getElementById('model-sc-heatmap');
+    if(el) el.innerHTML='<div style="padding:16px;font-size:12px;color:var(--mid)">ไม่พบข้อมูล Model</div>';
+    return;
+  }
+
+  // Max val for heatmap intensity
+  const allVals=topModels.flatMap(key=>MONTHS.map(m=>prodMap[key][m]||0));
+  const maxVal=Math.max(...allVals,1);
+
+  // Build heatmap table (same pattern as Brand)
+  const thCols=ML.map(m=>`<th style="text-align:right">${m}</th>`).join('');
+
+  const rows=topModels.map(key=>{
+    const [model,brand]=key.split('|||');
+    const vals=MONTHS.map(m=>prodMap[key][m]||0);
+    const total=vals.reduce((a,v)=>a+v,0);
+
+    const cells=vals.map((v,i)=>{
+      const intensity=Math.round(v/maxVal*80);
+      const bg=`rgba(59,130,246,${(intensity/100).toFixed(2)})`;
+      const textCol=intensity>50?'white':'var(--dark)';
+
+      let chgHtml='', border='';
+      if(i>0&&vals[i-1]>0){
+        const pct=((v-vals[i-1])/vals[i-1]*100);
+        const isDown=pct<=-threshold, isUp=pct>=threshold;
+        const col=pct>=0?'var(--green)':'var(--red)';
+        const arr=pct>=0?'▲':'▼';
+        chgHtml=`<span style="font-size:10px;color:${col};display:block">${arr}${Math.abs(pct).toFixed(1)}%</span>`;
+        if(isDown) border=`outline:1.5px solid var(--red);border-radius:4px;`;
+        if(isUp)   border=`outline:1.5px solid var(--green);border-radius:4px;`;
+      }
+      return `<td style="text-align:right;padding:5px 8px">
+        <span style="display:inline-block;padding:4px 7px;border-radius:4px;background:${bg};color:${textCol};font-size:12px;font-family:'IBM Plex Mono',monospace;${border}min-width:44px;text-align:right">
+          ${v>0?v.toLocaleString():'–'}${chgHtml}
+        </span></td>`;
+    }).join('');
+
+    const modelLabel=model.length>24?model.slice(0,22)+'…':model;
+    return `<tr style="border-bottom:0.5px solid var(--border);cursor:pointer" onclick="modelScDailyDrilldown('${model.replace(/'/g,"\\'")}','${brand.replace(/'/g,"\\'")}')">
+      <td style="padding:6px 10px">
+        <span style="font-size:12px;font-weight:600;color:var(--dark)" title="${model}">${modelLabel}</span>
+        <span style="display:block;font-size:10px;color:var(--mid);margin-top:1px">${brand}</span>
+      </td>
+      ${cells}
+      <td style="text-align:right;padding:6px 8px;font-weight:700;font-size:12px;font-family:'IBM Plex Mono',monospace">${total.toLocaleString()}</td>
+    </tr>`;
+  });
+
+  // Footer total row
+  const footVals=MONTHS.map(m=>topModels.reduce((s,key)=>s+(prodMap[key][m]||0),0));
+  const footTotal=footVals.reduce((a,b)=>a+b,0);
+  const footCells=footVals.map((v,i)=>{
+    let chgHtml='';
+    if(i>0&&footVals[i-1]>0){
+      const pct=((v-footVals[i-1])/footVals[i-1]*100);
+      const col=pct>=0?'var(--green)':'var(--red)';
+      chgHtml=`<span style="font-size:10px;color:${col};display:block">${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(1)}%</span>`;
+    }
+    return `<td style="text-align:right;padding:6px 8px;font-size:12px;font-family:'IBM Plex Mono',monospace">${v.toLocaleString()}${chgHtml}</td>`;
+  }).join('');
+
+  const heatEl=document.getElementById('model-sc-heatmap');
+  if(heatEl) heatEl.innerHTML=`
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Model</th>
+        ${thCols}
+        <th style="text-align:right;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">รวม</th>
+      </tr></thead>
+      <tbody>${rows.join('')}</tbody>
+      <tfoot><tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)">
+        <td style="padding:6px 10px;font-size:12px">Top ${topN} รวม</td>
+        ${footCells}
+        <td style="text-align:right;padding:6px 8px;font-size:12px;font-family:'IBM Plex Mono',monospace">${footTotal.toLocaleString()}</td>
+      </tfoot>
+    </table>
+    <div style="margin-top:8px;font-size:11px;color:var(--mid)">
+      กรอบ <span style="display:inline-block;width:10px;height:10px;outline:1.5px solid var(--red);border-radius:2px;vertical-align:middle"></span> = ลดเกิน ${threshold}% MoM ·
+      กรอบ <span style="display:inline-block;width:10px;height:10px;outline:1.5px solid var(--green);border-radius:2px;vertical-align:middle"></span> = โตเกิน ${threshold}% MoM ·
+      คลิก Model เพื่อดู Daily View
+    </div>`;
+
+  // Detailed table (toggle)
+  const tblEl=document.getElementById('model-sc-tbl');
+  if(tblEl){
+    const tblRows=topModels.map(key=>{
+      const [model,brand]=key.split('|||');
+      const vals=MONTHS.map(m=>prodMap[key][m]||0);
+      const total=vals.reduce((a,b)=>a+b,0);
+      const mCells=vals.map((v,i)=>{
+        let chg='';
+        if(i>0&&vals[i-1]>0){const p=((v-vals[i-1])/vals[i-1]*100);const col=p>=0?'var(--green)':'var(--red)';chg=`<br><span style="font-size:10px;color:${col}">${p>=0?'▲':'▼'}${Math.abs(p).toFixed(1)}%</span>`;}
+        return `<td style="text-align:right;padding:5px 8px;font-size:12px">${v>0?v.toLocaleString():'–'}${chg}</td>`;
+      }).join('');
+      return `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="padding:5px 10px;font-size:12px"><b>${model.length>28?model.slice(0,26)+'…':model}</b><br><span style="font-size:10px;color:var(--mid)">${brand}</span></td>
+        ${mCells}
+        <td style="text-align:right;padding:5px 8px;font-weight:700;font-size:12px">${total.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    const thM=ML.map(m=>`<th style="text-align:right;padding:5px 8px">${m}</th>`).join('');
+    tblEl.innerHTML=`<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:5px 10px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Model</th>${thM}
+        <th style="text-align:right;padding:5px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">รวม</th>
+      </tr></thead>
+      <tbody>${tblRows}
+        <tr style="background:var(--bg);font-weight:700;border-top:1px solid var(--border)">
+          <td style="padding:5px 10px;font-size:12px">Top ${topN} รวม</td>
+          ${footCells}
+          <td style="text-align:right;padding:5px 8px;font-size:12px">${footTotal.toLocaleString()}</td>
+        </tr>
+      </tbody></table>`;
+  }
+}
+
+// ============================================================
+// COMPANY HOLIDAYS CONFIG — update here every year
+// ============================================================
+const COMPANY_HOLIDAYS = {
+  2026: new Set([
+    '2026-01-01', // วันขึ้นปีใหม่
+    '2026-02-17', // วันตรุษจีน
+    '2026-03-03', // วันมาฆบูชา
+    '2026-04-06', // วันจักรี
+    '2026-04-13', // วันสงกรานต์
+    '2026-04-14', // วันสงกรานต์
+    '2026-04-15', // วันสงกรานต์
+    '2026-05-01', // วันแรงงานแห่งชาติ
+    '2026-05-04', // วันฉัตรมงคล
+    '2026-06-01', // วันวิสาขบูชา (หยุดชดเชย)
+    '2026-06-03', // วันเฉลิมพระชนมพรรษาสมเด็จพระราชินี
+    '2026-07-28', // วันเฉลิมพระชนมพรรษา ร.10
+    '2026-07-29', // วันอาสาฬหบูชา
+    '2026-08-12', // วันแม่แห่งชาติ
+    '2026-10-13', // วันนวมินทรมหาราช
+    '2026-10-23', // วันปิยมหาราช
+    '2026-12-07', // หยุดชดเชยวันคล้ายวันพระราชสมภพ ร.9
+    '2026-12-31', // วันสิ้นปี
+  ])
+};
+
+function isCompanyHoliday(dateStr){
+  const yr=parseInt(dateStr.slice(0,4));
+  return COMPANY_HOLIDAYS[yr]?.has(dateStr)||false;
+}
+function isWeekend(dateStr){
+  return [0,6].includes(new Date(dateStr).getDay());
+}
+
+// True brand red ramp for heatmap
+const TRUE_HM_RAMP=['#FFCCCC','#FF9999','#FF6666','#CC0000','#7A0000'];
+function getTrueHmColor(v,max){
+  if(!v||v===0) return null;
+  const r=v/max;
+  if(r<0.15) return TRUE_HM_RAMP[0];
+  if(r<0.35) return TRUE_HM_RAMP[1];
+  if(r<0.6)  return TRUE_HM_RAMP[2];
+  if(r<0.82) return TRUE_HM_RAMP[3];
+  return TRUE_HM_RAMP[4];
+}
+
+// Smart border: holiday company = dashed red (white if dark bg), weekend = dashed gray
+function getHmCellStyle(v, dateStr){
+  const isHol = isCompanyHoliday(dateStr);
+  const isWkd = isWeekend(dateStr);
+  const color = getTrueHmColor(v, _hmMaxVal||1);
+  const isDark = v && v/_hmMaxVal >= 0.6; // ramp 4-5
+
+  let bg = v === 0 ? 'var(--bg)' : (color||'var(--bg)');
+  let border = 'none';
+  let dot = '';
+
+  if(isHol){
+    border = isDark ? '2px dashed rgba(255,255,255,0.75)' : '1.5px dashed #CC0000';
+    dot = `<div style="position:absolute;bottom:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#FF6600;box-shadow:0 0 0 1px rgba(0,0,0,.12);pointer-events:none"></div>`;
+  } else if(isWkd){
+    border = '1.5px dashed #AAAAAA';
+  }
+  if(v===0 && !isHol && !isWkd) border = '0.5px solid var(--border)';
+
+  return {bg, border, dot};
+}
+
+let _hmMaxVal = 1;
+
+// Daily drill-down for model scorecard — Calendar Heatmap v3.13
+function modelScDailyDrilldown(model, brand){
+  const panel=document.getElementById('model-sc-daily-panel');
+  const title=document.getElementById('model-sc-daily-title');
+  const content=document.getElementById('model-sc-daily-content');
+  if(!panel||!title||!content) return;
+
+  title.textContent=`Daily View — ${model} (${brand})`;
+  panel.style.display='block';
+  content.innerHTML='<div style="padding:12px;color:var(--mid);font-size:12px">กำลังโหลด...</div>';
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+
+  setTimeout(()=>{
+    const sts=getSts();
+    const daily={};
+    (DATA._rows||[]).forEach(r=>{
+      const pname=(r.product_name||'').toLowerCase().trim();
+      if(pname!==model.toLowerCase().trim()) return;
+      if(!sts.includes(r.status)) return;
+      if(!r.day) return;
+      daily[r.day]=(daily[r.day]||0)+1;
+    });
+
+    // Group by month
+    const monthMap={};
+    Object.entries(daily).forEach(([d,v])=>{
+      const m=d.slice(0,7);
+      if(!monthMap[m]) monthMap[m]=[];
+      monthMap[m].push({d,v});
+    });
+
+    if(!Object.keys(monthMap).length){
+      content.innerHTML=`<div style="padding:12px;color:var(--mid);font-size:12px">ไม่พบข้อมูลรายวันสำหรับ ${model}</div>`;
+      return;
+    }
+
+    const allVals=Object.values(daily);
+    _hmMaxVal=Math.max(...allVals,1);
+    const totalAll=allVals.reduce((a,b)=>a+b,0);
+    const peakVal=Math.max(...allVals);
+    const peakDay=Object.entries(daily).find(([,v])=>v===peakVal)?.[0]||'';
+
+    // Available months sorted
+    const availMonths=MONTHS.filter(m=>monthMap[m]);
+    const MONTH_TH={'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.','2026-06':'มิ.ย.','2026-07':'ก.ค.','2026-08':'ส.ค.','2026-09':'ก.ย.','2026-10':'ต.ค.','2026-11':'พ.ย.','2026-12':'ธ.ค.'};
+    const DAY_TH=['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+    function buildKpiHtml(selM){
+      const isAll=selM==='all';
+      const vals=isAll?allVals:(Object.entries(daily).filter(([d])=>d.startsWith(selM)).map(([,v])=>v));
+      const total=vals.reduce((a,b)=>a+b,0);
+      const active=vals.filter(v=>v>0).length;
+      const peak=Math.max(...vals,0);
+      const peakD=isAll?peakDay:Object.entries(daily).find(([d,v])=>d.startsWith(selM)&&v===peak)?.[0]||'';
+      const prev=!isAll&&availMonths.indexOf(selM)>0?availMonths[availMonths.indexOf(selM)-1]:null;
+      const prevTotal=prev?(Object.entries(daily).filter(([d])=>d.startsWith(prev)).reduce((s,[,v])=>s+v,0)):null;
+      const mom=prevTotal?(((total-prevTotal)/prevTotal)*100).toFixed(1):null;
+      return [
+        {l:isAll?'รวมทุกเดือน':(MONTH_TH[selM]||selM),v:total.toLocaleString(),c:''},
+        {l:'MoM',v:mom?(parseFloat(mom)>=0?`▲${mom}%`:`▼${Math.abs(mom)}%`):'–',c:mom?(parseFloat(mom)>=0?'var(--green)':'var(--red)'):''},
+        {l:'Avg/วัน',v:active>0?(total/active).toFixed(1):'–',c:'#CC0000'},
+        {l:`Peak${peakD?' (ว.'+peakD.slice(8)+')':''}`,v:peak.toLocaleString(),c:'var(--green)'},
+      ].map(({l,v,c})=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 10px">
+        <div style="font-size:10px;color:var(--mid);margin-bottom:2px">${l}</div>
+        <div style="font-size:15px;font-weight:700;color:${c||'var(--dark)'}">${v}</div>
+      </div>`).join('');
+    }
+
+    function buildHmHtml(selM){
+      const showMonths=selM==='all'?availMonths:[selM];
+      const maxDays=31;
+      const colHdr=`<div style="font-size:10px;color:var(--mid);height:16px;padding-right:6px"></div>`+
+        Array.from({length:maxDays},(_,i)=>{
+          const show=(i+1)===1||(i+1)%5===0||(i+1)===maxDays;
+          return `<div style="font-size:9px;color:var(--mid);text-align:center;height:16px;display:flex;align-items:center;justify-content:center">${show?i+1:''}</div>`;
+        }).join('');
+
+      const rows=showMonths.map(mi=>{
+        const [yr,mo]=mi.split('-').map(Number);
+        const daysInMonth=new Date(yr,mo,0).getDate();
+        const cells=Array.from({length:maxDays},(_,di)=>{
+          if(di>=daysInMonth) return `<div style="background:transparent;border-radius:3px;height:22px"></div>`;
+          const dateStr=`${mi}-${String(di+1).padStart(2,'0')}`;
+          const v=daily[dateStr]||0;
+          const {bg,border,dot}=getHmCellStyle(v,dateStr);
+          const dow=DAY_TH[new Date(dateStr).getDay()];
+          const isHol=isCompanyHoliday(dateStr);
+          const isWkd=isWeekend(dateStr);
+          const tipExtra=isHol?' 🏖 หยุดบริษัท':isWkd?' (วันหยุด)':'';
+          const tip=`${MONTH_TH[mi]||mi} วันที่ ${di+1} (${dow})${tipExtra}: <b>${v} orders</b>`;
+          return `<div style="background:${bg};border:${border};border-radius:3px;height:22px;cursor:pointer;position:relative"
+            onmouseenter="document.getElementById('msc-tip').innerHTML='${tip.replace(/'/g,'&#39;')}'"
+            onmouseleave="document.getElementById('msc-tip').textContent='hover cell เพื่อดูรายละเอียด'">${dot}</div>`;
+        }).join('');
+        return `<div style="display:grid;grid-template-columns:40px repeat(${maxDays},1fr);gap:2px;min-width:620px;margin-bottom:2px">
+          <div style="font-size:10px;color:var(--mid);display:flex;align-items:center;white-space:nowrap;padding-right:6px;height:22px">${MONTH_TH[mi]||mi}</div>${cells}
+        </div>`;
+      }).join('');
+
+      return `<div style="overflow-x:auto">
+        <div style="display:grid;grid-template-columns:40px repeat(${maxDays},1fr);gap:2px;min-width:620px;margin-bottom:4px">${colHdr}</div>
+        ${rows}
+      </div>`;
+    }
+
+    function buildInsightHtml(selM){
+      const isAll=selM==='all';
+      if(isAll){
+        return `<div style="font-size:11px;font-weight:700;color:var(--dark);margin-bottom:3px">Key Insights — ทั้งหมด ${availMonths.length} เดือน</div>
+          <div style="font-size:11px;color:var(--mid);line-height:1.6">
+            รวม <b>${totalAll.toLocaleString()} orders</b> · Peak วันที่ ${peakDay.slice(8)} (${peakVal} orders)<br>
+            <span style="color:#FF6600">●</span> = วันหยุดบริษัท True · border เทาปะ = วันหยุดสุดสัปดาห์ · ไม่มีสี = ไม่มี order
+          </div>`;
+      }
+      const vals=Object.entries(daily).filter(([d])=>d.startsWith(selM)).map(([,v])=>v);
+      const total=vals.reduce((a,b)=>a+b,0);
+      const active=vals.filter(v=>v>0).length;
+      const peak=Math.max(...vals,0);
+      const holDays=Object.entries(daily).filter(([d])=>d.startsWith(selM)&&isCompanyHoliday(d)).length;
+      const [yr,mo]=selM.split('-').map(Number);
+      const daysInMonth=new Date(yr,mo,0).getDate();
+      return `<div style="font-size:11px;font-weight:700;color:var(--dark);margin-bottom:3px">Key Insights — ${MONTH_TH[selM]||selM}</div>
+        <div style="font-size:11px;color:var(--mid);line-height:1.6">
+          Active <b>${active} จาก ${daysInMonth} วัน</b> · Peak <b>${peak} orders</b><br>
+          วันหยุดบริษัท ${holDays} วันในเดือนนี้
+        </div>`;
+    }
+
+    // Build UI
+    let selM='all';
+    const tabsHtml=['all',...availMonths].map(m=>{
+      const lbl=m==='all'?'ทั้งหมด':(MONTH_TH[m]||m);
+      const on=m==='all'?' style="background:#CC0000;color:#fff;border-color:#CC0000"':'';
+      return `<button class="toggle-btn" data-hm="${m}"${on} onclick="hmTabClick(this,'${m}')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--border);cursor:pointer;font-family:inherit">${lbl}</button>`;
+    }).join('');
+
+    content.innerHTML=`
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">${tabsHtml}</div>
+      <div id="msc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">${buildKpiHtml('all')}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:11px;color:var(--mid)">
+        <span>น้อย</span>
+        <div style="display:flex;gap:2px">
+          ${TRUE_HM_RAMP.map(col=>`<div style="width:14px;height:14px;border-radius:2px;background:${col}"></div>`).join('')}
+        </div>
+        <span>มาก</span>
+        <span style="color:var(--border)">|</span>
+        <div style="width:14px;height:14px;border-radius:2px;background:var(--bg);border:1.5px dashed #AAAAAA"></div><span>วันหยุดสุดสัปดาห์</span>
+        <div style="width:14px;height:14px;border-radius:2px;background:var(--bg);border:1.5px dashed #CC0000;position:relative">
+          <div style="position:absolute;bottom:1px;right:1px;width:5px;height:5px;border-radius:50%;background:#FF6600"></div>
+        </div><span>วันหยุดบริษัท True</span>
+      </div>
+      <div id="msc-tip" style="font-size:11px;color:var(--mid);padding:5px 10px;background:var(--bg);border-radius:var(--rsm);margin-bottom:10px;min-height:26px">hover cell เพื่อดูรายละเอียด</div>
+      <div id="msc-hm">${buildHmHtml('all')}</div>
+      <div id="msc-insight" style="margin-top:10px;padding:8px 12px;background:var(--bg);border-radius:var(--rsm)">${buildInsightHtml('all')}</div>`;
+
+    // Tab switching
+    window.hmTabClick=function(btn, m){
+      content.querySelectorAll('[data-hm]').forEach(b=>{
+        b.style.background='';b.style.color='';b.style.borderColor='';
+      });
+      btn.style.background='#CC0000';btn.style.color='#fff';btn.style.borderColor='#CC0000';
+      selM=m;
+      _hmMaxVal=m==='all'?Math.max(...allVals,1):Math.max(...Object.entries(daily).filter(([d])=>d.startsWith(m)).map(([,v])=>v),1);
+      document.getElementById('msc-kpis').innerHTML=buildKpiHtml(m);
+      document.getElementById('msc-hm').innerHTML=buildHmHtml(m);
+      document.getElementById('msc-insight').innerHTML=buildInsightHtml(m);
+    };
+  },60);
+}
+
+// ============================================================
+// END MODEL SCORECARD v3.12
 // ============================================================
 
 printChangelog();
