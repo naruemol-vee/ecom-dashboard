@@ -2936,9 +2936,18 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.13_20260529';
+const DASH_VERSION   = 'v3.13_20260529b';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
+
+// ── Month label helper — supports any month, no hardcoding ──
+function monthToThai(m){
+  if(!m) return m;
+  const TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const mo=parseInt(String(m).slice(5,7));
+  return mo>=1&&mo<=12?TH[mo-1]:m;
+}
 const CHANGELOG = [
+  { v:'v3.13_20260529b', note:'Fix month label: replace hardcoded PF_MONTHS_LABELS/PF_C_MONTHS_TH/FRT_MONTHS_TH with Proxy using monthToThai() — supports all 12 months dynamically, no hardcoding' },
   { v:'v3.13_20260529', note:'(1) Fix anomaly borders in Brand+Model Scorecard cells; (2) Fix Brand Scorecard footer Top N label; (3) Model Scorecard Daily View: replace bar chart with Calendar Heatmap (True red ramp, tab months, KPI, tooltip, insight); (4) Fix close button model-sc-daily-panel; (5) Show version after login; (6) Add COMPANY_HOLIDAYS config 2026 with smart border on heatmap; (7) True brand red ramp for heatmap' },
   { v:'v3.12_20260529', note:'Brand Scorecard: (1) remove anomaly alert list below table — keep cell borders; (2) fix top-N to use set-topn from Settings instead of hardcoded 5; (3) add Model Scorecard Top-N table same style as Brand — heatmap, %MoM, anomaly borders, brand sub-label, daily drill-down, table toggle, info btn' },
   { v:'v3.11_20260529', note:'Login flow: remove auto-load on page open — fetch GitHub data AFTER password confirmed; pw-gate card shows spinner + loading text + progress bar during fetch; error state with retry button if fetch fails' },
@@ -3422,7 +3431,7 @@ function odtShowDailyJourney(journey, month, monthLabel){
 // Static data computed from Python analysis of TOS-New
 // (recalculated live from DATA._rows when available)
 
-const PF_MONTHS_LABELS = {'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+const PF_MONTHS_LABELS = new Proxy({}, {get:(_,m)=>monthToThai(m)});
 const PF_A_COLOR = '#BA7517'; // amber — Drop Off
 const PF_B_COLOR = '#A32D2D'; // red   — Payment Fail
 
@@ -3760,7 +3769,7 @@ function renderPayFailAnalysis(){
 // ============================================================
 // STACKED CHARTS v3.09 — Confirmed vs Drop Off (A) & Fail (B)
 // ============================================================
-const PF_C_MONTHS_TH={'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+const PF_C_MONTHS_TH = new Proxy({}, {get:(_,m)=>monthToThai(m)});
 
 // Filter state for each chart
 let _pfc1J=new Set(['all']), _pfc1M='all';
@@ -4099,7 +4108,7 @@ const FRT_COLORS={
   'the account is invalid':'#5C4A2A',
   'Issuer Declined : Suspected Fraud - Pick Up Card':'#534AB7',
 };
-const FRT_MONTHS_TH={'2026-01':'ม.ค.','2026-02':'ก.พ.','2026-03':'มี.ค.','2026-04':'เม.ย.','2026-05':'พ.ค.'};
+const FRT_MONTHS_TH = new Proxy({}, {get:(_,m)=>monthToThai(m)});
 const FRT_INSIGHTS={
   'Not accept app4in1':{badge:'Spike → ลด',bc:'#FCEBEB',fc:'#A32D2D',
     fn:(vals,months)=>{
