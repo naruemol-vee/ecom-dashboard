@@ -1191,7 +1191,7 @@ function processRows(allRows){
     ML.push(TH_MONTHS[parseInt(m.split('-')[1])-1]);
   });
 
-  const DEV_J=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only'];
+  const DEV_J=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only','Single Product'];
   const GA_J=['Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step','SIM Only - Pre to Post','SIM Only - Postpaid','SIM Only - MNP Postpaid'];
   const STATUSES=['completed','inprogress','cancel'];
   // agg เก็บแยกตาม status: agg.devCat[status][month][cat] = count
@@ -2936,7 +2936,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.13_20260529b';
+const DASH_VERSION   = 'v3.13_20260529c';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -2947,6 +2947,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v3.13_20260529c', note:'Add Single Product to DEV_J — device sold now includes single_product journey' },
   { v:'v3.13_20260529b', note:'Fix month label: replace hardcoded PF_MONTHS_LABELS/PF_C_MONTHS_TH/FRT_MONTHS_TH with Proxy using monthToThai() — supports all 12 months dynamically, no hardcoding' },
   { v:'v3.13_20260529', note:'(1) Fix anomaly borders in Brand+Model Scorecard cells; (2) Fix Brand Scorecard footer Top N label; (3) Model Scorecard Daily View: replace bar chart with Calendar Heatmap (True red ramp, tab months, KPI, tooltip, insight); (4) Fix close button model-sc-daily-panel; (5) Show version after login; (6) Add COMPANY_HOLIDAYS config 2026 with smart border on heatmap; (7) True brand red ramp for heatmap' },
   { v:'v3.12_20260529', note:'Brand Scorecard: (1) remove anomaly alert list below table — keep cell borders; (2) fix top-N to use set-topn from Settings instead of hardcoded 5; (3) add Model Scorecard Top-N table same style as Brand — heatmap, %MoM, anomaly borders, brand sub-label, daily drill-down, table toggle, info btn' },
