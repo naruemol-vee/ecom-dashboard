@@ -1013,6 +1013,16 @@ function mapCat(c){
 }
 
 function processRows(allRows){
+  // Pre-pass: หา sim_type ของแต่ละ order_id (เฉพาะ TOS-OLD) จากแถวใดก็ได้ที่มีค่า
+  // ใช้แก้ปัญหา order ที่มีหลาย line item (เช่น SIM+Device) ที่ sim_type เก็บไว้แค่แถว SIM
+  const oldOrderSimType={};
+  allRows.forEach(r=>{
+    if(r._sheet==='TOS-OLD'){
+      const oid=String(r._get('TOS-OLD.order_id')||'').trim();
+      const st=String(r._get('TOS-OLD.sim_type')||'').trim();
+      if(oid&&st&&!oldOrderSimType[oid]) oldOrderSimType[oid]=st;
+    }
+  });
   const processed=allRows.map(r=>{
     const get=r._get;
     const sheet=r._sheet||'';
@@ -1040,7 +1050,10 @@ function processRows(allRows){
     // ดึง TOS-OLD fields ที่ใช้ใน journey mapping ก่อน
     const _tmvh=String(get('TOS-OLD.tmvh_order_type')||'').trim();
     const _matcode=String(get('TOS-OLD.matcode')||'').trim();
-    const _simType=String(get('TOS-OLD.sim_type')||'').trim();
+    const _orderIdOld=String(get('TOS-OLD.order_id')||'').trim();
+    // sim_type อาจว่างถ้า order_id นี้มีหลาย line item (เช่น SIM+Device) และ sim_type อยู่แค่แถว SIM
+    // fallback ไปดู oldOrderSimType ที่ build ไว้ก่อนหน้า (sim_type จากแถวอื่นของ order_id เดียวกัน)
+    const _simType=String(get('TOS-OLD.sim_type')||'').trim() || (sheet==='TOS-OLD'?(oldOrderSimType[_orderIdOld]||''):'');
 
     // map journey ตาม sheet โดยใช้ orderType ที่ดึงจาก sheetname.columnname แล้ว
     let journey='Other';
@@ -1176,7 +1189,9 @@ function processRows(allRows){
     const _rawPayStage=String(get('TOS-New.PaymentStage')||'').trim();
     // ดึง day สำหรับ daily view
     const day=get('__day')||'';
-    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet};
+    // order_id สำหรับ dedup (TOS-OLD multi-line-item orders เช่น SIM+Device ในออเดอร์เดียว)
+    const orderIdForDedup=sheet==='TOS-OLD'?_orderIdOld:String(get(sheet+'.Order ID')||get(sheet+'.order_id')||'').trim();
+    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup};
   }).filter(r=>r.month&&/^\d{4}-\d{2}$/.test(r.month));
 
   // Debug: check TOS-OLD device rows
@@ -1217,6 +1232,44 @@ function processRows(allRows){
   };
   MONTHS.forEach(m=>{agg.order[m]={total:0,confirm:0,completed:0,inprogress:0,cancel:0};});
 
+  // Pre-pass: หา order_id ที่มี SIM-row ปนกับ Device-row ในออเดอร์เดียวกัน (TOS-OLD)
+  // เช่น order ที่ขายซิม Postpaid + เครื่อง ในออเดอร์เดียว — ต้อง dedup ไม่ให้นับ Device Sold 2 ครั้ง
+  const SIM_JOURNEYS=['SIM Only - Postpaid','SIM Only - Prepaid','SIM Only - MNP Postpaid','SIM Only - MNP Prepaid','SIM Only - Pre to Post'];
+  const DEV_CATS_CHECK_PRE=['Smartphone','Tablet','Smartwatch','Accessories'];
+  const orderHasSim={}, orderHasDev={};
+  processed.forEach(r=>{
+    if(!r.orderIdForDedup) return;
+    if(SIM_JOURNEYS.includes(r.journey)) orderHasSim[r.orderIdForDedup]=true;
+    if(DEV_CATS_CHECK_PRE.includes(r.product_cat)) orderHasDev[r.orderIdForDedup]=true;
+  });
+  // mixedOrderIds: order_id ที่มีทั้ง SIM-row และ Device-row ปนกัน (ใช้ dedup Device Sold เท่านั้น)
+  const mixedOrderIds=new Set(Object.keys(orderHasSim).filter(oid=>orderHasDev[oid]));
+  // เก็บ order_id ที่นับ Device Sold ไปแล้ว (กันนับซ้ำเฉพาะ mixed order)
+  const devCountedOrderIds=new Set();
+  // เก็บ order_id ที่นับ GA Postpaid ไปแล้ว (กันนับซ้ำเฉพาะ mixed order)
+  const gaCountedOrderIds=new Set();
+
+  // Pre-pass แยกสำหรับ GA Postpaid: หา order_id ที่มี "มากกว่า 1 แถว" ที่ journey เข้าเกณฑ์ GA
+  // (ไม่เกี่ยวกับ product_cat — ต่างจาก mixedOrderIds ด้านบนซึ่งใช้กับ Device Sold เท่านั้น)
+  // ตัวอย่างที่ mixedOrderIds จับไม่ได้: order ที่มี SIM-row (GA) + IOT-row ที่ journey เป็น Device Bundle New (GA)
+  // แต่ product_cat ของ IOT-row ไม่ตรง DEV_CATS_CHECK เลย ทำให้ mixedOrderIds มองไม่เห็นว่าเป็น order ปนกัน
+  const GA_POST_J_PRE=['Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step','SIM Only - Pre to Post','SIM Only - Postpaid','SIM Only - MNP Postpaid','SIM Only - Prepaid','SIM Only - MNP Prepaid'];
+  const TOS_NEW_GA_TYPES_PRE=['device_bundle_new','device_bundle_p2p','device_bundle_mnp_1_step','sim_only_p2p','sim_only_p2p_personalize','sim_only_postpaid','sim_only_mnp_postpaid','sim_only_prepaid','sim_only_mnp_prepaid'];
+  const gaRowCountByOrder={};
+  processed.forEach(r=>{
+    if(!r.orderIdForDedup) return;
+    let rowIsGA=false;
+    if(r._sheet==='TOS-OLD'){
+      if(r.status==='completed'&&r.delivery!=='shop'&&GA_POST_J_PRE.includes(r.journey)) rowIsGA=true;
+    } else if(r._sheet==='TOS-New'){
+      const ot=String(r._rawOrderType||'').trim().toLowerCase();
+      if(r.status==='completed'&&(r.deliveryShopName==='-'||r.deliveryShopName==='')&&TOS_NEW_GA_TYPES_PRE.includes(ot)) rowIsGA=true;
+    }
+    if(rowIsGA) gaRowCountByOrder[r.orderIdForDedup]=(gaRowCountByOrder[r.orderIdForDedup]||0)+1;
+  });
+  // gaMixedOrderIds: order_id ที่มี 2+ แถวเข้าเกณฑ์ GA Postpaid พร้อมกัน (ต้อง dedup)
+  const gaMixedOrderIds=new Set(Object.keys(gaRowCountByOrder).filter(oid=>gaRowCountByOrder[oid]>=2));
+
   processed.forEach(r=>{
     const m=r.month;
     if(!agg.order[m]) return;
@@ -1231,7 +1284,12 @@ function processRows(allRows){
     const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch','Accessories'];
     const isDevEligible=DEV_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&
       (r.product_cat!=='Accessories'||r.brand==='Apple');
-    if(isDevEligible){
+    // Dedup: ถ้า order_id นี้เป็น mixed order (มี SIM-row ปนกับ Device-row)
+    // และเคยนับ Device Sold ของ order_id นี้ไปแล้ว ให้ skip (กันนับซ้ำ)
+    const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
+    const alreadyCountedDev=isMixedOrder&&devCountedOrderIds.has(r.orderIdForDedup);
+    if(isDevEligible&&!alreadyCountedDev){
+      if(isMixedOrder) devCountedOrderIds.add(r.orderIdForDedup);
       agg.devOrder[st][m]=(agg.devOrder[st][m]||0)+1;
       k2(agg.devCat[st],m,r.product_cat);
       k2(agg.devJourney[st],m,r.journey);
@@ -1265,7 +1323,12 @@ function processRows(allRows){
       }
     }
     // DOS ไม่มี GA
-    if(isGA){
+    // Dedup: ถ้า order_id นี้มี 2+ แถวที่เข้าเกณฑ์ GA Postpaid พร้อมกัน (gaMixedOrderIds)
+    // และเคยนับ GA Postpaid ของ order_id นี้ไปแล้ว ให้ skip (กันนับซ้ำ)
+    const isMixedOrderGA=r.orderIdForDedup&&gaMixedOrderIds.has(r.orderIdForDedup);
+    const alreadyCountedGA=isMixedOrderGA&&gaCountedOrderIds.has(r.orderIdForDedup);
+    if(isGA&&!alreadyCountedGA){
+      if(isMixedOrderGA) gaCountedOrderIds.add(r.orderIdForDedup);
       agg.gaOrder[st][m]=(agg.gaOrder[st][m]||0)+1;
       k2(agg.gaJourney[st],m,r.journey);
     }
@@ -2936,7 +2999,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.13_20260529c';
+const DASH_VERSION   = 'v3.13_20260529d';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -2947,6 +3010,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v3.13_20260529d', note:'Fix TOS-OLD multi-line-item orders (เช่น SIM+Device ในออเดอร์เดียว): (1) sim_type fallback ข้าม row ภายใน order_id เดียวกัน เมื่อแถวตัวเองว่าง — แก้ journey mapping ผิดสำหรับ Device-row ที่ขาด sim_type; (2) Dedup Device Sold โดย order_id เมื่อมีทั้ง SIM-row และ Device-category row ปนกัน (mixedOrderIds ตาม product_cat); (3) Dedup GA Postpaid แยกต่างหาก โดยนับ order_id ที่มี 2+ แถว journey เข้าเกณฑ์ GA พร้อมกัน (gaMixedOrderIds ตาม journey ล้วนๆ ไม่พึ่ง product_cat) — แก้ bug เดิมที่ reuse mixedOrderIds ผิดทำให้ order ที่มี Device-row คนละ category (เช่น IOT) หลุดจาก dedup และนับซ้ำใน GA Postpaid; verified ลด GA Postpaid (TOS-OLD) 16,476→16,370 (-106 orders ที่เคยนับซ้ำ)' },
   { v:'v3.13_20260529c', note:'Add Single Product to DEV_J — device sold now includes single_product journey' },
   { v:'v3.13_20260529b', note:'Fix month label: replace hardcoded PF_MONTHS_LABELS/PF_C_MONTHS_TH/FRT_MONTHS_TH with Proxy using monthToThai() — supports all 12 months dynamically, no hardcoding' },
   { v:'v3.13_20260529', note:'(1) Fix anomaly borders in Brand+Model Scorecard cells; (2) Fix Brand Scorecard footer Top N label; (3) Model Scorecard Daily View: replace bar chart with Calendar Heatmap (True red ramp, tab months, KPI, tooltip, insight); (4) Fix close button model-sc-daily-panel; (5) Show version after login; (6) Add COMPANY_HOLIDAYS config 2026 with smart border on heatmap; (7) True brand red ramp for heatmap' },
