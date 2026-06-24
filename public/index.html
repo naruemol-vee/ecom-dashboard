@@ -1012,7 +1012,72 @@ function mapCat(c){
   return 'Other';
 }
 
+// ============================================================
+// v3.14: Device Only / SIM Only Prepaid multi-item logic (TOS-New)
+// ============================================================
+// เก็บ order ที่ผิดปกติ (Quantity Cart ว่าง/0 หรือจำนวน pipe ไม่ตรงกัน)
+// เพื่อ alert แจ้ง user ตอน step ดึงข้อมูลจาก GitHub — ถูก reset ทุกครั้งที่ processRows() รัน
+let QTY_CART_ANOMALIES=[];
+
+function parseQtyCart(raw){
+  const s=String(raw===null||raw===undefined?'':raw).trim();
+  if(s===''||s==='-') return NaN;
+  const n=parseInt(s,10);
+  return isNaN(n)?NaN:n;
+}
+function splitPipe(s){
+  return String(s===null||s===undefined?'':s).split('|').map(x=>x.trim());
+}
+const _BRAND_MAP_G={'oppo':'OPPO','honor':'HONOR','imoo':'IMOO','dtac':'DTAC','ais':'AIS'};
+function normalizeBrandSeg(rawSeg){
+  const _b=String(rawSeg||'').split(',')[0].trim();
+  const _k=_b.toLowerCase();
+  return _BRAND_MAP_G[_k]||(_k?_k.charAt(0).toUpperCase()+_k.slice(1):'');
+}
+function normalizeProductSeg(rawSeg){
+  return String(rawSeg||'').split(',')[0].trim()
+    .replace(/\s*\(\d+[/+]\d+\w*\)\s*$/,'')
+    .replace(/\s+\d+[/+]\d+\s*[GT]?B?\b/g,'')
+    .replace(/\s+\d+\s*[GT]B\b/g,'')
+    .trim();
+}
+// คำนวณรายชิ้นของ order journey "Device Only" (TOS-New, order type device_only/single_product)
+// คืนค่า array ของ {brand, product_name, cat} เฉพาะชิ้นที่ผ่านเกณฑ์ตรวจสอบความถูกต้องของข้อมูล (ไม่ผิดปกติ)
+// ถ้าผิดปกติ (Quantity Cart ว่าง/0 หรือจำนวน pipe ไม่ตรงกัน) จะ log เข้า QTY_CART_ANOMALIES และคืน [] (ไม่นับออเดอร์นี้)
+function getDeviceOnlyItems(r){
+  const qty=parseQtyCart(r._qtyCartRaw);
+  const oid=r.orderIdForDedup||'(ไม่มี Order ID)';
+  if(isNaN(qty)||qty<=0){
+    QTY_CART_ANOMALIES.push({orderId:oid,journey:r.journey,reason:'Quantity Cart ว่างหรือเป็น 0'});
+    return [];
+  }
+  const brands=splitPipe(r._brandNameRaw);
+  const prods=splitPipe(r._productNameRaw);
+  const cats=splitPipe(r._productCatRaw);
+  const n=brands.length;
+  // ไม่มี pipe เลย (ซื้อสินค้าแบบเดียวแต่หลายชิ้น) → ใช้ Quantity Cart ตรงๆ ไม่ถือเป็นความผิดปกติ
+  if(n===1&&prods.length===1&&cats.length===1){
+    const items=[];
+    for(let i=0;i<qty;i++) items.push({brand:normalizeBrandSeg(brands[0]),product_name:normalizeProductSeg(prods[0]),cat:mapCat(cats[0])});
+    return items;
+  }
+  // จำนวน pipe ของ 3 column ไม่ตรงกันเอง → ผิดปกติ
+  if(!(brands.length===prods.length&&prods.length===cats.length)){
+    QTY_CART_ANOMALIES.push({orderId:oid,journey:r.journey,reason:`จำนวน pipe ไม่ตรงกัน (Brand=${brands.length}, Product=${prods.length}, Cat=${cats.length})`});
+    return [];
+  }
+  // จำนวนชิ้นจาก pipe ไม่ตรงกับ Quantity Cart → ผิดปกติ
+  if(n!==qty){
+    QTY_CART_ANOMALIES.push({orderId:oid,journey:r.journey,reason:`จำนวนชิ้นจาก pipe (${n}) ไม่ตรงกับ Quantity Cart (${qty})`});
+    return [];
+  }
+  const items=[];
+  for(let i=0;i<n;i++) items.push({brand:normalizeBrandSeg(brands[i]),product_name:normalizeProductSeg(prods[i]),cat:mapCat(cats[i])});
+  return items;
+}
+
 function processRows(allRows){
+  QTY_CART_ANOMALIES=[]; // reset ทุกครั้งที่โหลดข้อมูลใหม่
   // Pre-pass: หา sim_type ของแต่ละ order_id (เฉพาะ TOS-OLD) จากแถวใดก็ได้ที่มีค่า
   // ใช้แก้ปัญหา order ที่มีหลาย line item (เช่น SIM+Device) ที่ sim_type เก็บไว้แค่แถว SIM
   const oldOrderSimType={};
@@ -1191,7 +1256,12 @@ function processRows(allRows){
     const day=get('__day')||'';
     // order_id สำหรับ dedup (TOS-OLD multi-line-item orders เช่น SIM+Device ในออเดอร์เดียว)
     const orderIdForDedup=sheet==='TOS-OLD'?_orderIdOld:String(get(sheet+'.Order ID')||get(sheet+'.order_id')||'').trim();
-    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup};
+    // v3.14: เก็บ raw value แบบไม่ split สำหรับ TOS-New เพื่อใช้คำนวณ Device Only/SIM Only Prepaid แบบรายชิ้น
+    const _qtyCartRaw=sheet==='TOS-New'?get('TOS-New.Quantity Cart'):'';
+    const _brandNameRaw=sheet==='TOS-New'?String(get('TOS-New.Brand Name')||''):'';
+    const _productNameRaw=sheet==='TOS-New'?String(get('TOS-New.Product Name')||''):'';
+    const _productCatRaw=sheet==='TOS-New'?String(get('TOS-New.Product Cat')||''):'';
+    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw};
   }).filter(r=>r.month&&/^\d{4}-\d{2}$/.test(r.month));
 
   // Debug: check TOS-OLD device rows
@@ -1282,25 +1352,48 @@ function processRows(allRows){
     const ks=agg.devCat[st]; // shorthand
     // Accessories นับเฉพาะ Brand = Apple
     const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch','Accessories'];
-    const isDevEligible=DEV_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&
-      (r.product_cat!=='Accessories'||r.brand==='Apple');
-    // Dedup: ถ้า order_id นี้เป็น mixed order (มี SIM-row ปนกับ Device-row)
-    // และเคยนับ Device Sold ของ order_id นี้ไปแล้ว ให้ skip (กันนับซ้ำ)
-    const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
-    const alreadyCountedDev=isMixedOrder&&devCountedOrderIds.has(r.orderIdForDedup);
-    if(isDevEligible&&!alreadyCountedDev){
-      if(isMixedOrder) devCountedOrderIds.add(r.orderIdForDedup);
-      agg.devOrder[st][m]=(agg.devOrder[st][m]||0)+1;
-      k2(agg.devCat[st],m,r.product_cat);
-      k2(agg.devJourney[st],m,r.journey);
-      if(r.brand&&r.brand!=='-'&&r.brand.toLowerCase()!=='true') k2(agg.brand[st],m,r.brand);
-      if(r.product_name&&r.product_name!=='-'){
-        k2(agg.prod[st],m+'||'+r.brand,r.product_name);
-        // prodJourney: key = brand||model, value = {journey: {month: count}}
-        const pjKey=r.brand+'||'+r.product_name;
-        if(!agg.prodJourney[st][pjKey]) agg.prodJourney[st][pjKey]={};
-        if(!agg.prodJourney[st][pjKey][r.journey]) agg.prodJourney[st][pjKey][r.journey]={};
-        agg.prodJourney[st][pjKey][r.journey][m]=(agg.prodJourney[st][pjKey][r.journey][m]||0)+1;
+    // v3.14: TOS-New journey "Device Only" (order type device_only/single_product) อาจมีหลายชิ้นต่อออเดอร์
+    // (Quantity Cart > 1, Brand Name/Product Name/Product Cat คั่นด้วย pipe) — ต้องนับรายชิ้น แทนนับทั้งออเดอร์เป็น 1
+    const isTosNewDeviceOnly=r._sheet==='TOS-New'&&r.journey==='Device Only';
+    if(isTosNewDeviceOnly){
+      // journey นี้ไม่มีปัญหา mixed SIM+Device order (1 order = 1 แถวเสมอใน TOS-New) จึงไม่ผ่าน dedup เดิม
+      const items=getDeviceOnlyItems(r);
+      items.forEach(it=>{
+        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple');
+        if(!eligible) return;
+        agg.devOrder[st][m]=(agg.devOrder[st][m]||0)+1;
+        k2(agg.devCat[st],m,it.cat);
+        k2(agg.devJourney[st],m,r.journey);
+        if(it.brand&&it.brand!=='-'&&it.brand.toLowerCase()!=='true') k2(agg.brand[st],m,it.brand);
+        if(it.product_name&&it.product_name!=='-'){
+          k2(agg.prod[st],m+'||'+it.brand,it.product_name);
+          const pjKey=it.brand+'||'+it.product_name;
+          if(!agg.prodJourney[st][pjKey]) agg.prodJourney[st][pjKey]={};
+          if(!agg.prodJourney[st][pjKey][r.journey]) agg.prodJourney[st][pjKey][r.journey]={};
+          agg.prodJourney[st][pjKey][r.journey][m]=(agg.prodJourney[st][pjKey][r.journey][m]||0)+1;
+        }
+      });
+    } else {
+      const isDevEligible=DEV_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&
+        (r.product_cat!=='Accessories'||r.brand==='Apple');
+      // Dedup: ถ้า order_id นี้เป็น mixed order (มี SIM-row ปนกับ Device-row)
+      // และเคยนับ Device Sold ของ order_id นี้ไปแล้ว ให้ skip (กันนับซ้ำ)
+      const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
+      const alreadyCountedDev=isMixedOrder&&devCountedOrderIds.has(r.orderIdForDedup);
+      if(isDevEligible&&!alreadyCountedDev){
+        if(isMixedOrder) devCountedOrderIds.add(r.orderIdForDedup);
+        agg.devOrder[st][m]=(agg.devOrder[st][m]||0)+1;
+        k2(agg.devCat[st],m,r.product_cat);
+        k2(agg.devJourney[st],m,r.journey);
+        if(r.brand&&r.brand!=='-'&&r.brand.toLowerCase()!=='true') k2(agg.brand[st],m,r.brand);
+        if(r.product_name&&r.product_name!=='-'){
+          k2(agg.prod[st],m+'||'+r.brand,r.product_name);
+          // prodJourney: key = brand||model, value = {journey: {month: count}}
+          const pjKey=r.brand+'||'+r.product_name;
+          if(!agg.prodJourney[st][pjKey]) agg.prodJourney[st][pjKey]={};
+          if(!agg.prodJourney[st][pjKey][r.journey]) agg.prodJourney[st][pjKey][r.journey]={};
+          agg.prodJourney[st][pjKey][r.journey][m]=(agg.prodJourney[st][pjKey][r.journey][m]||0)+1;
+        }
       }
     }
     // GA logic — GA Postpaid v2 spec
@@ -1329,8 +1422,20 @@ function processRows(allRows){
     const alreadyCountedGA=isMixedOrderGA&&gaCountedOrderIds.has(r.orderIdForDedup);
     if(isGA&&!alreadyCountedGA){
       if(isMixedOrderGA) gaCountedOrderIds.add(r.orderIdForDedup);
-      agg.gaOrder[st][m]=(agg.gaOrder[st][m]||0)+1;
-      k2(agg.gaJourney[st],m,r.journey);
+      // v3.14: GA Prepaid (TOS-New, order type = sim_only_prepaid) นับตาม Quantity Cart
+      // เนื่องจาก 1 order อาจมีได้หลายเบอร์ — GA Postpaid อื่นๆ ยังนับ 1 order = 1 เบอร์เสมอ
+      let gaQty=1;
+      if(r._sheet==='TOS-New'&&String(r._rawOrderType||'').trim().toLowerCase()==='sim_only_prepaid'){
+        const q=parseQtyCart(r._qtyCartRaw);
+        if(isNaN(q)||q<=0){
+          QTY_CART_ANOMALIES.push({orderId:r.orderIdForDedup||'(ไม่มี Order ID)',journey:r.journey,reason:'Quantity Cart ว่างหรือเป็น 0'});
+          gaQty=1; // fallback กันค่า GA หายไปทั้งออเดอร์ ระหว่างรอตรวจสอบ
+        } else {
+          gaQty=q;
+        }
+      }
+      agg.gaOrder[st][m]=(agg.gaOrder[st][m]||0)+gaQty;
+      k2(agg.gaJourney[st],m,r.journey,gaQty);
     }
     // simDel: SIM Only — Delivery Home vs Shop
     // Core filter: journey ∈ {SIM Only - Postpaid, SIM Only - MNP Postpaid} + status ≠ cancel
@@ -1397,6 +1502,7 @@ function processRows(allRows){
 
   // เก็บ processed rows สำหรับ daily query
   agg._rows=processed;
+  agg._qtyCartAnomalies=QTY_CART_ANOMALIES;
   return agg;
 }
 
@@ -2879,7 +2985,7 @@ function renderOverview2(){
   const devV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{Object.entries(DATA.devCat[st]||{}).forEach(([mm,kv])=>{if(mm===m)DEV_CATS_OV.forEach(cat=>{n+=(kv[cat]||0);});});});return n;});
   const gapV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{const gj=DATA.gaJourney[st]||{};Object.entries(gj).forEach(([mm,kv])=>{if(mm===m)GA_POST_J.forEach(j=>{n+=(kv[j]||0);});});});return n;});
   const gapreV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{const gj=DATA.gaJourney[st]||{};Object.entries(gj).forEach(([mm,kv])=>{if(mm===m)GA_PRE_J.forEach(j=>{n+=(kv[j]||0);});});});return n;});
-  function setCard(pfx,vals){const last=vals[vals.length-1],prev=vals[vals.length-2],total=vals.reduce((a,b)=>a+b,0);document.getElementById('ov-'+pfx).textContent=fmt(last);document.getElementById('ov-'+pfx+'-sub').textContent=`รวม ${fmt(total)} orders · ${MONTHS.length} เดือน`;document.getElementById('ov-'+pfx+'-delta').innerHTML=prev?pct(last,prev):'';}
+  function setCard(pfx,vals){const last=vals[vals.length-1],prev=vals[vals.length-2],total=vals.reduce((a,b)=>a+b,0);document.getElementById('ov-'+pfx).textContent=fmt(last);document.getElementById('ov-'+pfx+'-sub').textContent=`รวม ${fmt(total)} units · ${MONTHS.length} เดือน`;document.getElementById('ov-'+pfx+'-delta').innerHTML=prev?pct(last,prev):'';}
   setCard('dev',devV);setCard('gap',gapV);setCard('gapre',gapreV);
   window._dV=devV;window._gV=gapV;window._gpV=gapreV;
 }
@@ -2999,7 +3105,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.13_20260529d';
+const DASH_VERSION   = 'v3.14_20260624';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -3010,6 +3116,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v3.14_20260624', note:'TOS-New journey "Device Only" (device_only/single_product) และ "SIM Only - Prepaid" รองรับหลายชิ้น/หลายเบอร์ต่อออเดอร์: (1) GA Prepaid นับตาม Quantity Cart แทน 1 order=1 เบอร์ (GA Postpaid ไม่เปลี่ยน); (2) Device Sold journey "Device Only" นับรายชิ้นโดย split Brand Name/Product Name/Product Cat ด้วย "|" ตามตำแหน่ง — กระทบ KPI รวม, by Journey, Brand Scorecard, Model Scorecard/Drilldown ทุกตาราง ยังคงไม่นับ Smart Living/IOT และ Accessories นับเฉพาะ Apple; (3) Order Type Breakdown, Payment Fail, Order Daily Trend ไม่กระทบ — ยังนับตาม order เดิม; (4) เพิ่ม anomaly detection: Quantity Cart ว่าง/0 หรือจำนวน pipe ไม่ตรงกัน (ระหว่าง Brand/Product/Cat เอง หรือกับ Quantity Cart) → alert popup แจ้ง Order ID ตอน step ดึงข้อมูลจาก GitHub และไม่นับออเดอร์นั้นจนกว่าจะแก้ไข' },
   { v:'v3.13_20260529d', note:'Fix TOS-OLD multi-line-item orders (เช่น SIM+Device ในออเดอร์เดียว): (1) sim_type fallback ข้าม row ภายใน order_id เดียวกัน เมื่อแถวตัวเองว่าง — แก้ journey mapping ผิดสำหรับ Device-row ที่ขาด sim_type; (2) Dedup Device Sold โดย order_id เมื่อมีทั้ง SIM-row และ Device-category row ปนกัน (mixedOrderIds ตาม product_cat); (3) Dedup GA Postpaid แยกต่างหาก โดยนับ order_id ที่มี 2+ แถว journey เข้าเกณฑ์ GA พร้อมกัน (gaMixedOrderIds ตาม journey ล้วนๆ ไม่พึ่ง product_cat) — แก้ bug เดิมที่ reuse mixedOrderIds ผิดทำให้ order ที่มี Device-row คนละ category (เช่น IOT) หลุดจาก dedup และนับซ้ำใน GA Postpaid; verified ลด GA Postpaid (TOS-OLD) 16,476→16,370 (-106 orders ที่เคยนับซ้ำ)' },
   { v:'v3.13_20260529c', note:'Add Single Product to DEV_J — device sold now includes single_product journey' },
   { v:'v3.13_20260529b', note:'Fix month label: replace hardcoded PF_MONTHS_LABELS/PF_C_MONTHS_TH/FRT_MONTHS_TH with Proxy using monthToThai() — supports all 12 months dynamically, no hardcoding' },
@@ -3077,6 +3184,12 @@ async function loadFromOneDrive(){
     if(!allRows.length) throw new Error('ไม่พบ Sheet DOS, TOS-OLD, TOS-New ในไฟล์');
     RAW_ROWS=allRows;
     DATA=processRows(allRows);
+    // v3.14: แจ้งเตือนถ้าพบ order ผิดปกติใน journey Device Only / SIM Only Prepaid (TOS-New)
+    // — Quantity Cart ว่าง/0 หรือจำนวน pipe ใน Brand/Product/Cat ไม่ตรงกัน
+    if(DATA._qtyCartAnomalies&&DATA._qtyCartAnomalies.length){
+      const lines=DATA._qtyCartAnomalies.map(a=>`• ${a.orderId} (${a.journey}) — ${a.reason}`).join('\n');
+      alert('⚠ พบข้อมูลผิดปกติ '+DATA._qtyCartAnomalies.length+' order ใน journey Device Only / SIM Only Prepaid (TOS-New)\nกรุณาตรวจสอบที่ต้นทาง (ออเดอร์เหล่านี้จะไม่ถูกนับใน Device Sold/GA Prepaid จนกว่าจะแก้ไข):\n\n'+lines);
+    }
     const now=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
     setStatus('✓ '+allRows.length.toLocaleString()+' แถว | อัปเดต '+now,'ok');
     document.getElementById('hdr-sub').textContent='GitHub · DOS · TOS-OLD · TOS-New · '+DASH_VERSION;
