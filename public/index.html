@@ -354,6 +354,32 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
         <div class="kpi-row" id="dev-kpis"></div>
         <div class="ct-card"><h4>Device Sold แยก Category <button class="toggle-btn" onclick="toggleTable('dev-cat-tbl')">ตาราง ▾</button></h4><div style="position:relative;height:200px"><canvas id="chart-dev-cat"></canvas></div><div class="ct-tbl" id="dev-cat-tbl"></div></div>
         <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· <b>Accessories</b> นับเฉพาะ Brand = Apple เท่านั้น</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
+        <!-- ── Device Sold Daily Trend ─────────────────────────────── -->
+        <div class="ct-card">
+          <!-- Filter Bar -->
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
+            <select id="dsdt-month-sel" onchange="renderDSDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
+            <div id="dsdt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+          </div>
+          <!-- KPI Row -->
+          <div id="dsdt-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+          <!-- Chart -->
+          <h4>Device Sold Daily Trend — <span id="dsdt-chart-title">–</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" onclick="toggleTable('dsdt-tbl-wrap')">ตาราง ▾</button>
+            </span>
+          </h4>
+          <div id="dsdt-insight" style="margin-bottom:10px"></div>
+          <div id="dsdt-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="dsdt-bars" style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:0 4px;border-bottom:1px solid var(--border)"></div>
+          <div id="dsdt-xlabels" style="display:flex;gap:2px;padding:4px 4px 0;overflow:hidden"></div>
+          <div style="font-size:11px;color:var(--mid);margin-top:8px">แถบเทา = ไม่มียอด · แถบจาง = วันหยุดสุดสัปดาห์ · นับ units (ไม่ใช่ orders)</div>
+          <div class="ct-tbl" id="dsdt-tbl-wrap" style="margin-top:10px"></div>
+        </div>
+
         <div class="ct-card">
           <h4>Brand Scorecard — Top <span id="brand-topn-lbl">5</span> <span style="font-size:10px;color:var(--mid);font-weight:400">คลิก Brand → Model</span></h4>
           <div id="brand-heatmap"></div>
@@ -2977,7 +3003,7 @@ function renderPayFail(){
   });
   tbl.innerHTML=h+`</tbody></table>`;
 }
-function renderAll(){if(!DATA.order)return;renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
+function renderAll(){if(!DATA.order)return;renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();initDSDTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
 
 function renderOverview2(){
   const sts=getSts();
@@ -3238,6 +3264,153 @@ function toggleODTInfo(){document.getElementById('odt-info-box').classList.toggl
 function toggleODTJrnInfo(){document.getElementById('odt-jrn-info-box').classList.toggle('open');}
 
 // Build month dropdown & journey chips (called after data load)
+// ══════════════════════════════════════════════════════════════════
+// DEVICE SOLD DAILY TREND (DSDT)
+// ══════════════════════════════════════════════════════════════════
+const DEV_SOLD_J=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only','Single Product'];
+const DEV_SOLD_CATS=['Smartphone','Tablet','Smartwatch','Accessories'];
+
+let _dsdtSelJourneys=new Set();
+
+function initDSDTFilters(){
+  if(!DATA||!MONTHS.length) return;
+  const sel=document.getElementById('dsdt-month-sel');
+  if(!sel) return;
+  sel.innerHTML='';
+  [...MONTHS].reverse().forEach((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    const lbl=TH_MONTHS[mo-1]+' '+yr;
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=lbl+(i===0?' (ล่าสุด)':'');
+    if(i===0) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  // Journey chips — only device journeys with data
+  const jSet=new Set();
+  (DATA._rows||[]).forEach(r=>{ if(DEV_SOLD_J.includes(r.journey)) jSet.add(r.journey); });
+  const chipWrap=document.getElementById('dsdt-journey-chips');
+  if(!chipWrap) return;
+  chipWrap.innerHTML='';
+  const allChip=document.createElement('span');
+  allChip.className='sc on'; allChip.id='dsdt-chip-all'; allChip.textContent='All Journey';
+  allChip.onclick=function(){
+    _dsdtSelJourneys.clear();
+    chipWrap.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
+    allChip.classList.add('on');
+    renderDSDT();
+  };
+  chipWrap.appendChild(allChip);
+  const jOrder=['Device Bundle Existing','Device Only','Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Single Product'];
+  jOrder.filter(j=>jSet.has(j)).forEach(j=>{
+    const c=document.createElement('span');
+    c.className='sc'; c.dataset.j=j;
+    const lbl=j.replace('Device Bundle ','DB ').replace('Device Only','Device Only').replace('Single Product','Single Product');
+    c.textContent=lbl;
+    c.onclick=function(){
+      if(_dsdtSelJourneys.has(j)){ _dsdtSelJourneys.delete(j); c.classList.remove('on'); }
+      else { _dsdtSelJourneys.add(j); c.classList.add('on'); document.getElementById('dsdt-chip-all').classList.remove('on'); }
+      if(_dsdtSelJourneys.size===0) document.getElementById('dsdt-chip-all').classList.add('on');
+      renderDSDT();
+    };
+    chipWrap.appendChild(c);
+  });
+  renderDSDT();
+}
+
+function dsdtDailyUnits(month){
+  if(!DATA||!DATA._rows) return {};
+  const sts=getSts();
+  const filterJ=_dsdtSelJourneys.size>0?_dsdtSelJourneys:null;
+  const daily={};
+  const countedOrders={};
+  (DATA._rows||[]).forEach(r=>{
+    if(!r.month.startsWith(month)||!r.day||!r.day.startsWith(month)) return;
+    if(!sts.includes(r.status)) return;
+    if(!DEV_SOLD_J.includes(r.journey)) return;
+    if(filterJ&&!filterJ.has(r.journey)) return;
+    if(!daily[r.day]) daily[r.day]=0;
+    // Device Only (TOS-New): count items via getDeviceOnlyItems
+    if(r._sheet==='TOS-New'&&r.journey==='Device Only'&&typeof getDeviceOnlyItems==='function'){
+      getDeviceOnlyItems(r).forEach(it=>{
+        if(DEV_SOLD_CATS.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple'))
+          daily[r.day]++;
+      });
+    } else {
+      if(DEV_SOLD_CATS.includes(r.product_cat)&&(r.product_cat!=='Accessories'||r.brand==='Apple'))
+        daily[r.day]++;
+    }
+  });
+  return daily;
+}
+
+function renderDSDT(){
+  if(!DATA||!MONTHS.length) return;
+  const month=document.getElementById('dsdt-month-sel')?.value;
+  if(!month) return;
+  const [yr,mo]=month.split('-').map(Number);
+  document.getElementById('dsdt-chart-title').textContent=TH_MONTHS[mo-1]+' '+yr;
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
+  const daily=dsdtDailyUnits(month);
+  const vals=allDays.map(d=>daily[d]||0);
+  const maxVal=Math.max(...vals,1);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeDays=vals.filter(v=>v>0).length;
+  const peak=Math.max(...vals);
+  const peakDay=allDays[vals.indexOf(peak)];
+  // KPI
+  const prevIdx=MONTHS.indexOf(month)-1;
+  let prevTotal=0;
+  if(prevIdx>=0){const pd=dsdtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
+  const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
+  document.getElementById('dsdt-kpis').innerHTML=[
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">เดือน ${daysInMonth} วัน</div>`},
+    {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
+    {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${daysInMonth} วัน</div>`},
+  ].map(k=>`<div class="kpi-m"><div class="kpi-m-lbl">${k.lbl}</div><div class="kpi-m-val">${k.val}</div>${k.sub}</div>`).join('');
+  // Insight
+  const lastActive=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0).pop();
+  let insightHtml='';
+  if(total===0) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 ไม่พบข้อมูลในเดือนนี้เลย</div>`;
+  else if(lastActive!==undefined&&lastActive<daysInMonth-3) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 <strong>หยุดมีข้อมูลหลังวันที่ ${allDays[lastActive].slice(8)}</strong> — ไม่พบ units ใน ${daysInMonth-lastActive-1} วันสุดท้าย</div>`;
+  else insightHtml=`<div style="padding:10px 14px;background:rgba(34,197,94,.08);border-left:3px solid #0A6E45;border-radius:0 6px 6px 0;font-size:12px;">✅ <strong>Active ${activeDays} จาก ${daysInMonth} วัน</strong></div>`;
+  document.getElementById('dsdt-insight').innerHTML=insightHtml;
+  // Stats
+  document.getElementById('dsdt-stats').innerHTML=[
+    ['รวม',total.toLocaleString(),'var(--dark)'],
+    ['Active',activeDays+' วัน','var(--dark)'],
+    ['เฉลี่ย/วัน',(activeDays>0?total/activeDays:0).toFixed(1),'#3b82f6'],
+    ['Peak',peak+(peakDay?' (วันที่ '+peakDay.slice(8)+')':''),'#0A6E45'],
+  ].map(([l,v,c])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 14px;min-width:90px;"><div style="font-size:10px;color:var(--mid)">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  // Bars
+  document.getElementById('dsdt-bars').innerHTML=allDays.map((d,i)=>{
+    const v=vals[i];
+    const h=maxVal>0?Math.max(Math.round(v/maxVal*100),v>0?4:0):0;
+    const isWeekend=[0,6].includes(new Date(d).getDay());
+    const bg=v===0?'rgba(0,0,0,0.07)':'#3b82f6';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;" title="${d}: ${v} units"><div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div><div style="height:${h}px;width:100%;background:${bg};border-radius:2px 2px 0 0;opacity:${isWeekend?.55:1}"></div></div>`;
+  }).join('');
+  // X Labels
+  document.getElementById('dsdt-xlabels').innerHTML=allDays.map((d,i)=>{
+    const day=d.slice(8);
+    const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
+    return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
+  }).join('');
+  // Table
+  const tblRows=allDays.map((d,i)=>{
+    const v=vals[i]; const day=d.slice(8);
+    const dow=['อา','จ','อ','พ','พฤ','ศ','ส'][new Date(d).getDay()];
+    const isWkd=[0,6].includes(new Date(d).getDay());
+    const pct=total>0?(v/total*100).toFixed(1):0;
+    return`<tr style="${isWkd?'color:var(--mid)':''}"><td style="padding:4px 8px">${day} (${dow})</td><td style="text-align:right;padding:4px 8px;font-weight:${v===peak&&peak>0?'700':'400'}">${v.toLocaleString()}</td><td style="text-align:right;padding:4px 8px;color:${v===peak&&peak>0?'#0A6E45':'var(--mid)'}">${pct}%</td></tr>`;
+  }).join('');
+  document.getElementById('dsdt-tbl-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">วัน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Units</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">% ของเดือน</th></tr></thead><tbody>${tblRows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${total.toLocaleString()}</td><td style="text-align:right;padding:5px 8px">100%</td></tr></tfoot></table>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+
 function initODTFilters(){
   if(!DATA||!MONTHS.length) return;
 
