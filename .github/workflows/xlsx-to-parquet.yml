@@ -1,0 +1,82 @@
+name: Convert XLSX (from Release) to Parquet
+
+# วิธีใช้:
+# 1. สร้าง GitHub Release ใหม่ (หรือใช้ของเดิม) แล้วแนบไฟล์ xlsx เป็น Asset
+#    เช่น สร้าง tag "data-2026-08-16" แล้วอัปโหลด data.xlsx เข้าไป
+# 2. ไปที่ Actions > Convert XLSX (from Release) to Parquet > Run workflow
+# 3. ใส่ release_tag / asset_name / output_path ตามที่ต้องการ แล้วกด Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag ที่แนบไฟล์ xlsx ไว้ (เช่น data-2026-08-16)"
+        required: true
+      asset_name:
+        description: "ชื่อไฟล์ xlsx ที่แนบใน Release"
+        required: true
+        default: "data.xlsx"
+      sheet_name:
+        description: "ชื่อ/index ของ sheet ที่จะอ่าน (ปล่อยว่าง = sheet แรก)"
+        required: false
+        default: "0"
+      output_path:
+        description: "path ปลายทางของไฟล์ parquet ใน repo"
+        required: true
+        default: "data/data.parquet"
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow openpyxl
+
+      - name: Download xlsx from Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ inputs.release_tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "${{ inputs.asset_name }}" \
+            --output input.xlsx \
+            --clobber
+
+      - name: Convert xlsx to parquet
+        run: |
+          python <<'EOF'
+          import pandas as pd
+          import os
+
+          sheet = "${{ inputs.sheet_name }}"
+          sheet_name = int(sheet) if sheet.strip().isdigit() else (sheet if sheet.strip() else 0)
+
+          df = pd.read_excel("input.xlsx", sheet_name=sheet_name)
+
+          out_path = "${{ inputs.output_path }}"
+          os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+          df.to_parquet(out_path, engine="pyarrow", compression="snappy", index=False)
+
+          size_kb = os.path.getsize(out_path) / 1024
+          print(f"บันทึกไฟล์แล้ว: {out_path} ({size_kb:.1f} KB, {len(df)} แถว)")
+          EOF
+
+      - name: Commit and push parquet file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ inputs.output_path }}"
+          git diff --cached --quiet && echo "ไม่มีการเปลี่ยนแปลง ข้าม commit" || \
+            git commit -m "chore: update parquet from ${{ inputs.asset_name }} (release: ${{ inputs.release_tag }})"
+          git push
