@@ -10,8 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag ที่แนบไฟล์ xlsx ไว้ (เช่น data-2026-08-16)"
+        description: "Release tag ที่แนบไฟล์ xlsx ไว้"
         required: true
+        default: "data-latest"
       asset_name:
         description: "ชื่อไฟล์ xlsx ที่แนบใน Release"
         required: true
