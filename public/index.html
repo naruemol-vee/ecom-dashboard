@@ -3131,7 +3131,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.14_20260624';
+const DASH_VERSION   = 'v3.15_20260816';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -3142,6 +3142,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v3.15_20260816', note:'(1) Device Sold Daily Trend: เพิ่ม section ใน tab Device Sold — filter by Month (dropdown, default ล่าสุด) + Journey (multi-select chip, default All); KPI cards (Total Units, Avg/วัน, Peak Day, Active Days + %MoM); daily bar chart นับ units ตาม logic Device Sold เดียวกัน รวม getDeviceOnlyItems สำหรับ TOS-New Device Only; insight alert; ตารางรายวัน % ของเดือน; toggleable table (2) เปลี่ยน GITHUB_EXCEL_URL จาก raw.githubusercontent.com/naruemol-vee/ecom-dashboard/main/public/data.xlsx → github.com/naruemol-vee/ecom-dashboard/releases/download/data-latest/data.xlsx' },
   { v:'v3.14_20260624', note:'TOS-New journey "Device Only" (device_only/single_product) และ "SIM Only - Prepaid" รองรับหลายชิ้น/หลายเบอร์ต่อออเดอร์: (1) GA Prepaid นับตาม Quantity Cart แทน 1 order=1 เบอร์ (GA Postpaid ไม่เปลี่ยน); (2) Device Sold journey "Device Only" นับรายชิ้นโดย split Brand Name/Product Name/Product Cat ด้วย "|" ตามตำแหน่ง — กระทบ KPI รวม, by Journey, Brand Scorecard, Model Scorecard/Drilldown ทุกตาราง ยังคงไม่นับ Smart Living/IOT และ Accessories นับเฉพาะ Apple; (3) Order Type Breakdown, Payment Fail, Order Daily Trend ไม่กระทบ — ยังนับตาม order เดิม; (4) เพิ่ม anomaly detection: Quantity Cart ว่าง/0 หรือจำนวน pipe ไม่ตรงกัน (ระหว่าง Brand/Product/Cat เอง หรือกับ Quantity Cart) → alert popup แจ้ง Order ID ตอน step ดึงข้อมูลจาก GitHub และไม่นับออเดอร์นั้นจนกว่าจะแก้ไข' },
   { v:'v3.13_20260529d', note:'Fix TOS-OLD multi-line-item orders (เช่น SIM+Device ในออเดอร์เดียว): (1) sim_type fallback ข้าม row ภายใน order_id เดียวกัน เมื่อแถวตัวเองว่าง — แก้ journey mapping ผิดสำหรับ Device-row ที่ขาด sim_type; (2) Dedup Device Sold โดย order_id เมื่อมีทั้ง SIM-row และ Device-category row ปนกัน (mixedOrderIds ตาม product_cat); (3) Dedup GA Postpaid แยกต่างหาก โดยนับ order_id ที่มี 2+ แถว journey เข้าเกณฑ์ GA พร้อมกัน (gaMixedOrderIds ตาม journey ล้วนๆ ไม่พึ่ง product_cat) — แก้ bug เดิมที่ reuse mixedOrderIds ผิดทำให้ order ที่มี Device-row คนละ category (เช่น IOT) หลุดจาก dedup และนับซ้ำใน GA Postpaid; verified ลด GA Postpaid (TOS-OLD) 16,476→16,370 (-106 orders ที่เคยนับซ้ำ)' },
   { v:'v3.13_20260529c', note:'Add Single Product to DEV_J — device sold now includes single_product journey' },
@@ -3176,7 +3177,7 @@ const CHANGELOG = [
 // ============================================================
 // GITHUB DATA SOURCE (v3 Option C)
 // ============================================================
-const GITHUB_EXCEL_URL='https://raw.githubusercontent.com/naruemol-vee/ecom-dashboard/main/public/data.xlsx';
+const GITHUB_EXCEL_URL='https://github.com/naruemol-vee/ecom-dashboard/releases/download/data-latest/data.xlsx';
 
 let _odRefreshTimer=null;
 
