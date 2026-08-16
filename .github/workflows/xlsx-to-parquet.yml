@@ -24,7 +24,7 @@ on:
       output_path:
         description: "path ปลายทางของไฟล์ parquet ใน repo"
         required: true
-        default: "data/data.parquet"
+        default: "public/data.parquet"
 
 permissions:
   contents: write
