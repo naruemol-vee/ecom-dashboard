@@ -54,23 +54,28 @@ jobs:
             --output input.xlsx \
             --clobber
 
-      - name: Convert xlsx to parquet
+      - name: Convert xlsx to parquet (3 sheets → combined parquet)
         run: |
           python <<'EOF'
           import pandas as pd
           import os
 
-          sheet = "${{ inputs.sheet_name }}"
-          sheet_name = int(sheet) if sheet.strip().isdigit() else (sheet if sheet.strip() else 0)
+          sheets = ['DOS', 'TOS-OLD', 'TOS-New']
+          dfs = []
+          for s in sheets:
+              df = pd.read_excel("input.xlsx", sheet_name=s)
+              df.insert(0, '_sheet', s)
+              dfs.append(df)
+              print(f"  อ่าน {s}: {len(df):,} แถว x {len(df.columns)} คอลัมน์")
 
-          df = pd.read_excel("input.xlsx", sheet_name=sheet_name)
-
+          combined = pd.concat(dfs, ignore_index=True).fillna('')
           out_path = "${{ inputs.output_path }}"
           os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-          df.to_parquet(out_path, engine="pyarrow", compression="snappy", index=False)
+          combined.to_parquet(out_path, engine="pyarrow", compression="snappy", index=False)
 
-          size_kb = os.path.getsize(out_path) / 1024
-          print(f"บันทึกไฟล์แล้ว: {out_path} ({size_kb:.1f} KB, {len(df)} แถว)")
+          size_mb = os.path.getsize(out_path) / 1024 / 1024
+          print(f"บันทึกไฟล์แล้ว: {out_path} ({size_mb:.2f} MB, {len(combined):,} แถว)")
+          print(f"_sheet values: {combined['_sheet'].unique().tolist()}")
           EOF
 
       - name: Commit and push parquet file
