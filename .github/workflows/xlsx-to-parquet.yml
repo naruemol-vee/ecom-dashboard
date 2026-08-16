@@ -64,6 +64,8 @@ jobs:
           dfs = []
           for s in sheets:
               df = pd.read_excel("input.xlsx", sheet_name=s)
+              # แปลงทุก column เป็น string ก่อน เพื่อป้องกัน mixed-type (bool/int/str) ใน Excel
+              df = df.astype(str).replace({'nan': '', 'None': '', 'NaT': ''})
               df.insert(0, '_sheet', s)
               dfs.append(df)
               print(f"  อ่าน {s}: {len(df):,} แถว x {len(df.columns)} คอลัมน์")
