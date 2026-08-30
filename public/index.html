@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>eCommerce Executive Dashboard v3.17</title>
+<title>eCommerce Executive Dashboard v3 – OneDrive</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -5058,6 +5058,7 @@ function readExcel2(file){if(!file)return;setStatus('กำลังอ่าน
 </script>
 <script>
 
+
 // ============================================================
 // CONSTANTS & STATE
 // ============================================================
@@ -5525,12 +5526,17 @@ function processRows(allRows){
       const PREPAID_J=['SIM Only - Prepaid','SIM Only - MNP Prepaid'];
       sim_category=PREPAID_J.includes(journey)?'prepaid':'postpaid';
     }
-    const simCo=String(get(sheet+'.SIM Company')||'').trim();
     const simType2=String(get(sheet+'.sim_type')||'').trim();
     let sim_type=null;
-    if(simCo.toUpperCase()==='RF') sim_type='eSIM';
-    else if(simType2==='postpaid') sim_type='Physical';
-    else if(simType2==='prepaid') sim_type='Prepaid';
+    if(sheet==='TOS-New'){
+      // TOS-New: ใช้ SIM Source Type — physical→Physical, esim→eSIM
+      const simSrcType=String(get('TOS-New.SIM Source Type')||'').trim().toLowerCase();
+      if(simSrcType==='esim') sim_type='eSIM';
+      else if(simSrcType==='physical') sim_type='Physical';
+    } else {
+      // TOS-OLD, DOS: ไม่มี SIM Source Type → Physical ทั้งหมด
+      if(simType2==='postpaid'||simType2==='prepaid') sim_type='Physical';
+    }
     let operator='TRUE';
     if(sheet==='DOS'){
       operator='DTAC'; // DOS = DTAC เสมอ
@@ -9531,6 +9537,7 @@ function readExcel2(file){if(!file)return;setStatus('กำลังอ่าน
   const panel=document.getElementById('ai-section');
   if(panel&&!isClaudeAI) panel.style.display='none';
 })();
+
 
 </script>
 </body>
