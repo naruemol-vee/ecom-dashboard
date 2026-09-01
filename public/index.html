@@ -355,14 +355,20 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
     </div>
     <div class="tabs-wrap">
       <div class="tabs-bar">
-        <button class="tab-btn" onclick="switchTab2('dev',this)">Device Sold</button>
+        <button class="tab-btn on" onclick="switchTab2('dev',this)">Device Sold</button>
         <button class="tab-btn" onclick="switchTab2('gap',this)">GA – Postpaid</button>
+        <button class="tab-btn" onclick="switchTab2('gapre',this)">GA – Prepaid</button>
         <button class="tab-btn" onclick="switchTab2('rc',this)">RC & Package</button>
         <button class="tab-btn" onclick="switchTab2('journey',this)">Order Type Breakdown</button>
         <button class="tab-btn" onclick="switchTab2('payfail',this)">Payment Fail</button>
         <button class="tab-btn" onclick="switchTab2('orderdaily',this)">Order Daily Trend</button>
       </div>
       <div class="tab-body on" id="tab-dev">
+        <div class="ct-card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px">
+          <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">UTM Source</span>
+          <select id="dev-utm-sel" onchange="setDevUtmFilter()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:160px;cursor:pointer;font-family:inherit"><option value="all">All</option></select>
+          <span style="font-size:11px;color:var(--mid)">— filter นี้มีผลกับทุก section ในแท็บ Device Sold (TOS-New เท่านั้น ที่มี column นี้)</span>
+        </div>
         <div class="kpi-row" id="dev-kpis"></div>
         <div class="ct-card"><h4>Device Sold แยก Category <button class="toggle-btn" onclick="toggleTable('dev-cat-tbl')">ตาราง ▾</button></h4><div style="position:relative;height:200px"><canvas id="chart-dev-cat"></canvas></div><div class="ct-tbl" id="dev-cat-tbl"></div></div>
         <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· <b>Accessories</b> นับเฉพาะ Brand = Apple เท่านั้น</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
@@ -457,9 +463,113 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
       </div>
       <div class="tab-body" id="tab-gap">
         <div class="kpi-row" id="gap-kpis"></div>
-        <div class="ct-card"><h4>GA Postpaid แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('gap-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="jrn-info-btn" onclick="toggleJrnInfo()">ⓘ</span></span></h4><div class="info-box" id="jrn-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Postpaid</b> แยกตาม Journey โดยมีเงื่อนไขแตกต่างกันตาม Sheet:<br><br><b>TOS-OLD</b><br>· <code>order_status = completed</code> เท่านั้น (ไม่นับ in-progress)<br>· <code>delivery_location ≠ shop</code> (ไม่นับ Pick Up at Shop)<br>· Journey ที่นับ: Device Bundle New, Device Bundle P2P, Device Bundle MNP 1 Step, SIM Only - Pre to Post, SIM Only - Postpaid, SIM Only - MNP Postpaid<br><br><b>TOS-New</b><br>· <code>Fai_Order Stage = Completed</code><br>· <code>Delivery Shop Name = '-'</code> (เฉพาะ Delivery to Home — Pick Up at Shop ไม่ถูกนับใน GA)<br>· Order Type: device_bundle_new, device_bundle_p2p, device_bundle_mnp_1_step, sim_only_p2p, sim_only_p2p_personalize, sim_only_postpaid, sim_only_mnp_postpaid, sim_only_prepaid, sim_only_mnp_prepaid<br><br><span style="color:#7F7F7F;font-size:11px">⚠ ตารางนี้มียอด <b>น้อยกว่า</b> ตาราง SIM Only — Delivery Home vs Shop เสมอ เนื่องจาก GA ไม่นับ in-progress และไม่นับ Pick Up at Shop ทั้งสอง Sheet</span></div></div><div style="position:relative;height:200px"><canvas id="chart-gap-jrn"></canvas></div><div class="ct-tbl" id="gap-jrn-tbl"></div></div>
-        <div class="ct-card"><h4>SIM Only — Delivery Home vs Shop <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('gap-del-tbl')">ตาราง ▾</button><span class="info-btn" id="del-info-btn" onclick="toggleDelInfo()">ⓘ</span></span></h4><div class="info-box" id="del-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ Journey <b>SIM Only - Postpaid</b> และ <b>SIM Only - MNP Postpaid</b> เฉพาะ status <b>completed + in-progress</b> (ไม่นับ cancel) แยกตามวิธีรับสินค้า:<br><br><b>TOS-OLD</b><br>· กำหนด Journey จาก <code>product_type ∈ (postpaid, sim)</code> + <code>sim_type = postpaid</code> + <code>tmvh_order_type = Sim Only</code><br>· 🏠 Delivery to Home = <code>delivery_location = home</code><br>· 🏪 Pick Up at Shop = <code>delivery_location = shop</code><br><br><b>TOS-New</b><br>· กำหนด Journey จาก <code>Order Type ∈ (sim_only_postpaid, sim_only_mnp_postpaid)</code><br>· 🏠 Delivery to Home = <code>Delivery Shop Name = '-'</code> หรือว่างเปล่า<br>· 🏪 Pick Up at Shop = <code>Delivery Shop Name</code> มีชื่อร้านระบุ<br><br><span style="color:#7F7F7F;font-size:11px">⚠ ตารางนี้มียอด <b>มากกว่า</b> ตาราง GA Postpaid แยก Journey เสมอ เนื่องจากรวม in-progress และ TOS-New Pick Up at Shop ซึ่ง GA ไม่นับ</span></div></div><div style="position:relative;height:180px"><canvas id="chart-gap-del"></canvas></div><div class="ct-tbl" id="gap-del-tbl"></div></div>
-        <div class="ct-card"><h4>Physical SIM vs eSIM <button class="toggle-btn" onclick="toggleTable('gap-sim-tbl')">ตาราง ▾</button></h4><div style="position:relative;height:180px"><canvas id="chart-gap-sim"></canvas></div><div class="ct-tbl" id="gap-sim-tbl"></div></div>
+        <div class="ct-card"><h4>GA Postpaid แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('gap-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="jrn-info-btn" onclick="toggleJrnInfo()">ⓘ</span></span></h4><div class="info-box" id="jrn-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Postpaid</b> แยกตาม Journey โดยมีเงื่อนไขแตกต่างกันตาม Sheet:<br><br><b>TOS-OLD</b><br>· <code>order_status = completed</code> เท่านั้น (ไม่นับ in-progress)<br>· <code>delivery_location ≠ shop</code> (ไม่นับ Pick Up at Shop)<br>· Journey ที่นับ: Device Bundle New, Device Bundle P2P, Device Bundle MNP 1 Step, SIM Only - Pre to Post, SIM Only - Postpaid, SIM Only - MNP Postpaid<br><br><b>TOS-New</b><br>· <code>Fai_Order Stage = Completed</code><br>· <code>Delivery Shop Name = '-'</code> (เฉพาะ Delivery to Home — Pick Up at Shop ไม่ถูกนับใน GA)<br>· Order Type: device_bundle_new, device_bundle_p2p, device_bundle_mnp_1_step, sim_only_p2p, sim_only_p2p_personalize, sim_only_postpaid, sim_only_mnp_postpaid, sim_only_prepaid, sim_only_mnp_prepaid<br><br><span style="color:#7F7F7F;font-size:11px">⚠ ตารางนี้มียอด <b>น้อยกว่าหรือเท่ากับ</b> ตาราง SIM Only — Delivery Home vs Shop เสมอ เนื่องจาก GA ไม่นับ Pick Up at Shop ทั้งสอง Sheet (ทั้งสองตารางนับ completed เท่านั้นเหมือนกันแล้ว)</span></div></div><div style="position:relative;height:200px"><canvas id="chart-gap-jrn"></canvas></div><div class="ct-tbl" id="gap-jrn-tbl"></div></div>
+        <!-- ── GA Postpaid Daily Trend ─────────────────────────────── -->
+        <div class="ct-card">
+          <!-- Filter Bar -->
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
+            <select id="gapdt-month-sel" onchange="renderGAPDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
+            <div id="gapdt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+          </div>
+          <!-- KPI Row -->
+          <div id="gapdt-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+          <!-- Chart -->
+          <h4>GA Postpaid Daily Trend — <span id="gapdt-chart-title">–</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right">
+              <button class="toggle-btn" onclick="toggleTable('gapdt-tbl-wrap')">ตาราง ▾</button>
+            </span>
+          </h4>
+          <div id="gapdt-insight" style="margin-bottom:10px"></div>
+          <div id="gapdt-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="gapdt-bars" style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:0 4px;border-bottom:1px solid var(--border)"></div>
+          <div id="gapdt-xlabels" style="display:flex;gap:2px;padding:4px 4px 0;overflow:hidden"></div>
+          <div style="font-size:11px;color:var(--mid);margin-top:8px">แถบเทา = ไม่มียอด (ผ่าน as of แล้ว) · แถบลายทาง = ยังไม่ถึงวันนี้ (เกิน as of) · แถบจาง = วันหยุดสุดสัปดาห์ · นับเฉพาะ status completed (ตาม logic GA Postpaid) · ไม่รวม Prepaid · Active Days/insight อิงตามวันที่ "as of" ไม่ใช่จำนวนวันเต็มเดือน</div>
+          <div class="ct-tbl" id="gapdt-tbl-wrap" style="margin-top:10px"></div>
+        </div>
+        <div class="ct-card"><h4>SIM Only — Delivery Home vs Shop <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('gap-del-tbl')">ตาราง ▾</button><span class="info-btn" id="del-info-btn" onclick="toggleDelInfo()">ⓘ</span></span></h4><div class="info-box" id="del-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ Journey <b>SIM Only - Postpaid</b> และ <b>SIM Only - MNP Postpaid</b> เฉพาะ status <b>completed เท่านั้น</b> (ไม่นับ in-progress, cancel) แยกตามวิธีรับสินค้า:<br><br><b>TOS-OLD</b><br>· กำหนด Journey จาก <code>product_type ∈ (postpaid, sim)</code> + <code>sim_type = postpaid</code> + <code>tmvh_order_type = Sim Only</code><br>· 🏠 Delivery to Home = <code>delivery_location = home</code><br>· 🏪 Pick Up at Shop = <code>delivery_location = shop</code><br><br><b>TOS-New</b><br>· กำหนด Journey จาก <code>Order Type ∈ (sim_only_postpaid, sim_only_mnp_postpaid)</code><br>· 🏠 Delivery to Home = <code>Delivery Shop Name = '-'</code> หรือว่างเปล่า<br>· 🏪 Pick Up at Shop = <code>Delivery Shop Name</code> มีชื่อร้านระบุ<br><br><span style="color:#7F7F7F;font-size:11px">⚠ ตารางนี้มียอด <b>มากกว่าหรือเท่ากับ</b> ตาราง GA Postpaid แยก Journey เสมอ เนื่องจากรวม TOS-New Pick Up at Shop ซึ่ง GA ไม่นับ (ทั้งสองตารางนับ completed เท่านั้นเหมือนกันแล้ว)</span></div></div><div style="position:relative;height:180px"><canvas id="chart-gap-del"></canvas></div><div class="ct-tbl" id="gap-del-tbl"></div></div>
+        <div class="ct-card">
+          <h4>Physical SIM vs eSIM <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('gap-sim-tbl')">ตาราง ▾</button><span class="info-btn" id="simtype-info-btn" onclick="toggleSimTypeInfo()">ⓘ</span></span></h4>
+          <div class="info-box" id="simtype-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Postpaid</b> เฉพาะ status <b>completed เท่านั้น</b> (ไม่นับ in-progress, cancel — ไม่ผูกกับ toggle Confirm/Cancel ใน Settings) แยกตามประเภทซิม กรองได้ตาม Journey (default: <b>SIM Only - Postpaid</b> + <b>SIM Only - MNP Postpaid</b> เท่านั้น — เลือก "All Journey" เพื่อดูครบทั้ง 6 journey: Device Bundle New, Device Bundle P2P, Device Bundle MNP 1 Step, SIM Only - Pre to Post, SIM Only - Postpaid, SIM Only - MNP Postpaid):<br><br><b>TOS-New</b><br>· ใช้ column <code>SIM Source Type</code> — <code>physical</code> → Physical, <code>esim</code> → eSIM<br><br><b>TOS-OLD</b><br>· ไม่มี column นี้ → จัดเป็น <b>Physical ทั้งหมด</b><br><br><b>Filter Delivery to Home / Pick Up at Shop</b> ใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop:<br>· TOS-OLD: <code>delivery_location = home/shop</code><br>· TOS-New: <code>Delivery Shop Name = '-'</code> หรือว่าง → Home, มีชื่อร้าน → Shop</div></div>
+          <div style="display:flex;align-items:center;gap:6px;margin:10px 0 8px;flex-wrap:wrap" id="simtype-journey-filter">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;margin-right:2px">Journey</span>
+            <span class="sc" id="stj-chip-all" onclick="toggleSimTypeJourneyAll()">All Journey</span>
+            <span class="sc on" data-j="SIM Only - Postpaid" onclick="toggleSimTypeJourneyChip(this)">SIM Postpaid</span>
+            <span class="sc on" data-j="SIM Only - MNP Postpaid" onclick="toggleSimTypeJourneyChip(this)">SIM MNP Postpaid</span>
+            <span class="sc" data-j="SIM Only - Pre to Post" onclick="toggleSimTypeJourneyChip(this)">SIM Pre to Post</span>
+            <span class="sc" data-j="Device Bundle New" onclick="toggleSimTypeJourneyChip(this)">DB New</span>
+            <span class="sc" data-j="Device Bundle P2P" onclick="toggleSimTypeJourneyChip(this)">DB P2P</span>
+            <span class="sc" data-j="Device Bundle MNP 1 Step" onclick="toggleSimTypeJourneyChip(this)">DB MNP 1 Step</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin:0 0 12px;flex-wrap:wrap" id="simtype-del-filter">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;margin-right:2px">Delivery</span>
+            <span class="sc on" data-f="all" onclick="setSimTypeDelFilter('all',this)">All</span>
+            <span class="sc" data-f="home" onclick="setSimTypeDelFilter('home',this)">Delivery to Home</span>
+            <span class="sc" data-f="shop" onclick="setSimTypeDelFilter('shop',this)">Pick Up at Shop</span>
+          </div>
+          <div style="position:relative;height:180px"><canvas id="chart-gap-sim"></canvas></div>
+          <div class="ct-tbl" id="gap-sim-tbl"></div>
+        </div>
+        <!-- ── Campaign: เบอร์มงคล / 5G MyPlan ─────────────────────── -->
+        <div class="ct-card">
+          <h4>Campaign — เบอร์มงคล &amp; 5G MyPlan <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('campaign-tbl')">ตาราง ▾</button><span class="info-btn" id="campaign-info-btn" onclick="toggleCampaignInfo()">ⓘ</span></span></h4>
+          <div class="info-box" id="campaign-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Postpaid</b> (6 journeys เดียวกับ section อื่นในแท็บนี้: Device Bundle New, Device Bundle P2P, Device Bundle MNP 1 Step, SIM Only - Pre to Post, SIM Only - Postpaid, SIM Only - MNP Postpaid) เฉพาะ status <b>completed เท่านั้น</b> แยกเป็น 2 campaign จาก <b>TOS-New</b> เท่านั้น:<br><br>· <b>เบอร์มงคล</b> = column <code>Lucky SIM order = Y</code><br>· <b>5G MyPlan</b> = column <code>DIY order = Y</code><br><br>Filter Delivery ใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop (default = <b>Delivery to Home</b>)<br><br><span style="color:#7F7F7F;font-size:11px">ⓘ TOS-OLD ไม่มี column เหล่านี้ จึงไม่ถูกนับในตารางนี้</span></div></div>
+          <div style="display:flex;align-items:center;gap:6px;margin:10px 0 12px;flex-wrap:wrap" id="campaign-del-filter">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;margin-right:2px">Delivery</span>
+            <span class="sc" data-f="all" onclick="setCampaignDelFilter('all',this)">All</span>
+            <span class="sc on" data-f="home" onclick="setCampaignDelFilter('home',this)">Delivery to Home</span>
+            <span class="sc" data-f="shop" onclick="setCampaignDelFilter('shop',this)">Pick Up at Shop</span>
+          </div>
+          <div style="position:relative;height:220px"><canvas id="chart-campaign"></canvas></div>
+          <div class="ct-tbl" id="campaign-tbl"></div>
+        </div>
+      </div>
+      <div class="tab-body" id="tab-gapre">
+        <div class="ct-card" style="background:rgba(0,0,0,0.03);font-size:11px;color:var(--mid);padding:10px 16px">ℹ️ Prepaid ไม่มี Pick Up at Shop (ส่งถึงบ้านเสมอ) และไม่มี UTM Source ที่มีความหมาย จึงไม่มี filter Delivery/UTM ในแท็บนี้ · การนับ "unit" ใช้ผลรวม Quantity Cart ไม่ใช่จำนวน order (1 order ซื้อได้มากกว่า 1 ซิม)</div>
+        <div class="kpi-row" id="gapre-kpis"></div>
+        <div class="ct-card"><h4>GA Prepaid แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('gapre-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="gapre-jrn-info-btn" onclick="toggleGaPreJrnInfo()">ⓘ</span></span></h4><div class="info-box" id="gapre-jrn-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> แยกตาม Journey (SIM Only - Prepaid, SIM Only - MNP Prepaid) เฉพาะ status <b>completed เท่านั้น</b> — นับหน่วยด้วยผลรวม <code>Quantity Cart</code> (TOS-OLD ไม่มี column นี้ → คิดเป็น 1 เสมอ) ใช้เงื่อนไข completion เดียวกับ GA Postpaid (TOS-OLD: order_status=completed; TOS-New: Fai_Order Stage=Completed) รวม dedup order ที่มีหลายแถวเข้าเกณฑ์ GA พร้อมกัน</div></div><div style="position:relative;height:200px"><canvas id="chart-gapre-jrn"></canvas></div><div class="ct-tbl" id="gapre-jrn-tbl"></div></div>
+        <!-- ── GA Prepaid Daily Trend ─────────────────────────────── -->
+        <div class="ct-card">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
+            <select id="gapredt-month-sel" onchange="renderGAPREDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
+            <div id="gapredt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+          </div>
+          <div id="gapredt-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+          <h4>GA Prepaid Daily Trend — <span id="gapredt-chart-title">–</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('gapredt-tbl-wrap')">ตาราง ▾</button></span>
+          </h4>
+          <div id="gapredt-insight" style="margin-bottom:10px"></div>
+          <div id="gapredt-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="gapredt-bars" style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:0 4px;border-bottom:1px solid var(--border)"></div>
+          <div id="gapredt-xlabels" style="display:flex;gap:2px;padding:4px 4px 0;overflow:hidden"></div>
+          <div style="font-size:11px;color:var(--mid);margin-top:8px">แถบเทา = ไม่มียอด (ผ่าน as of แล้ว) · แถบลายทาง = ยังไม่ถึงวันนี้ (เกิน as of) · แถบจาง = วันหยุดสุดสัปดาห์ · นับเฉพาะ status completed · นับหน่วยด้วย Quantity Cart · Active Days/insight อิงตามวันที่ "as of" ไม่ใช่จำนวนวันเต็มเดือน</div>
+          <div class="ct-tbl" id="gapredt-tbl-wrap" style="margin-top:10px"></div>
+        </div>
+        <!-- ── Physical vs eSIM (Prepaid) ───────────────────────────── -->
+        <div class="ct-card">
+          <h4>Physical SIM vs eSIM <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('gapre-sim-tbl')">ตาราง ▾</button><span class="info-btn" id="gapresim-info-btn" onclick="toggleGaPreSimInfo()">ⓘ</span></span></h4>
+          <div class="info-box" id="gapresim-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> เฉพาะ status <b>completed เท่านั้น</b> แยกตามประเภทซิม กรองได้ตาม Journey (default: All):<br><br><b>TOS-New</b><br>· ใช้ column <code>SIM Source Type</code> — <code>physical</code> → Physical, <code>esim</code> → eSIM<br><br><b>TOS-OLD</b><br>· ไม่มี column นี้ → จัดเป็น <b>Physical ทั้งหมด</b><br><br>นับหน่วยด้วยผลรวม <code>Quantity Cart</code> (TOS-OLD คิดเป็น 1 เสมอ) · ไม่มี filter Delivery เพราะ Prepaid ส่งถึงบ้านเสมอ</div></div>
+          <div style="display:flex;align-items:center;gap:6px;margin:10px 0 12px;flex-wrap:wrap" id="gapre-journey-filter">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;margin-right:2px">Journey</span>
+            <span class="sc on" id="gapre-chip-all" onclick="setGaPreSimJourney('all',this)">All Journey</span>
+            <span class="sc" data-j="SIM Only - Prepaid" onclick="setGaPreSimJourney('SIM Only - Prepaid',this)">SIM Prepaid</span>
+            <span class="sc" data-j="SIM Only - MNP Prepaid" onclick="setGaPreSimJourney('SIM Only - MNP Prepaid',this)">MNP Prepaid</span>
+          </div>
+          <div style="position:relative;height:180px"><canvas id="chart-gapre-sim"></canvas></div>
+          <div class="ct-tbl" id="gapre-sim-tbl"></div>
+        </div>
+        <!-- ── Campaign: Go Travel SIM / Tourist SIM / Mass ─────────── -->
+        <div class="ct-card">
+          <h4>Campaign — Go Travel SIM / Tourist SIM / Mass <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('gapre-campaign-tbl')">ตาราง ▾</button><span class="info-btn" id="gapre-camp-info-btn" onclick="toggleGaPreCampInfo()">ⓘ</span></span></h4>
+          <div class="info-box" id="gapre-camp-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> เฉพาะ status <b>completed เท่านั้น</b> แยกตาม Product Name (ทั้ง TOS-OLD column <code>product_name</code> และ TOS-New column <code>Product Name</code>):<br><br>· <b>Go Travel SIM</b> = ขึ้นต้นด้วย "GO Travel" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Tourist SIM</b> = ขึ้นต้นด้วย "THAILAND TOURIST" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Mass</b> = ที่เหลือทั้งหมด<br><br>นับหน่วยด้วยผลรวม <code>Quantity Cart</code> (TOS-OLD คิดเป็น 1 เสมอ)</div></div>
+          <div style="position:relative;height:220px"><canvas id="chart-gapre-campaign"></canvas></div>
+          <div class="ct-tbl" id="gapre-campaign-tbl"></div>
+        </div>
       </div>
       <div class="tab-body" id="tab-rc">
         <div class="ct-card"><h4>Top 10 Postpaid — Device Bundle</h4><div style="position:relative;height:260px"><canvas id="chart-pkg-dev"></canvas></div></div>
@@ -5561,7 +5671,13 @@ function processRows(allRows){
     const _brandNameRaw=sheet==='TOS-New'?String(get('TOS-New.Brand Name')||''):'';
     const _productNameRaw=sheet==='TOS-New'?String(get('TOS-New.Product Name')||''):'';
     const _productCatRaw=sheet==='TOS-New'?String(get('TOS-New.Product Cat')||''):'';
-    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw};
+    // v4.09: Campaign flags — เบอร์มงคล (Lucky SIM order) / 5G MyPlan (DIY order) — TOS-New เท่านั้น
+    const isLuckySim=sheet==='TOS-New'&&String(get('TOS-New.Lucky SIM order')||'').trim().toUpperCase()==='Y';
+    const isDiy=sheet==='TOS-New'&&String(get('TOS-New.DIY order')||'').trim().toUpperCase()==='Y';
+    // v4.10: UTM Source (TOS-New เท่านั้น) — สำหรับ filter ใน Device Sold tab
+    const utmSourceRaw=sheet==='TOS-New'?String(get('TOS-New.UTM Source')||'').trim():'';
+    const utmSource=(utmSourceRaw&&utmSourceRaw!=='-')?utmSourceRaw:'ไม่ระบุ';
+    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw,isLuckySim,isDiy,utmSource};
   }).filter(r=>r.month&&/^\d{4}-\d{2}$/.test(r.month));
 
   // Debug: check TOS-OLD device rows
@@ -5738,8 +5854,8 @@ function processRows(allRows){
       k2(agg.gaJourney[st],m,r.journey,gaQty);
     }
     // simDel: SIM Only — Delivery Home vs Shop
-    // Core filter: journey ∈ {SIM Only - Postpaid, SIM Only - MNP Postpaid} + status ≠ cancel
-    if((r.journey==='SIM Only - Postpaid'||r.journey==='SIM Only - MNP Postpaid')&&st!=='cancel'){
+    // Core filter: journey ∈ {SIM Only - Postpaid, SIM Only - MNP Postpaid} + status = completed เท่านั้น (v4.3: ตัด in-progress ออก)
+    if((r.journey==='SIM Only - Postpaid'||r.journey==='SIM Only - MNP Postpaid')&&st==='completed'){
       let _delKey='';
       if(r._sheet==='TOS-OLD'){
         if(r.delivery==='home') _delKey='home';
@@ -6817,17 +6933,10 @@ function renderGA(){
 function renderBrand(){
   const threshold=parseFloat(document.getElementById('brand-threshold')?.value||50);
 
-  // ดึงข้อมูลตาม brandStatus
+  // ดึงข้อมูลตาม brandStatus + UTM Source filter (v4.10)
   function mergeBrandByStatus(){
-    const result={};
     const sts=brandStatus==='cancel'?['cancel']:['completed','inprogress'];
-    sts.forEach(st=>{
-      Object.entries(DATA.brand[st]||{}).forEach(([m,kv])=>{
-        if(!result[m]) result[m]={};
-        Object.entries(kv).forEach(([k,v])=>{ result[m][k]=(result[m][k]||0)+v; });
-      });
-    });
-    return result;
+    return devSoldBrandAgg(_devUtmFilter,sts);
   }
   const br=mergeBrandByStatus();
 
@@ -7171,6 +7280,95 @@ function renderOperator(){
 const DEV_J2=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only'];
 const GA_POST_J=['SIM Only - Postpaid','SIM Only - Pre to Post','SIM Only - MNP Postpaid','Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step'];
 const GA_PRE_J=['SIM Only - Prepaid','SIM Only - MNP Prepaid'];
+
+// ── Physical SIM vs eSIM: Delivery filter (All / Home / Shop) ──
+let _simTypeDelFilter='all'; // 'all' | 'home' | 'shop'
+// Journey filter — default: เฉพาะ SIM Only - Postpaid + SIM Only - MNP Postpaid (empty Set = All Journey)
+let _simTypeJourneyFilter=new Set(['SIM Only - Postpaid','SIM Only - MNP Postpaid']);
+function rowDeliveryKey(r){
+  if(r._sheet==='TOS-OLD'){
+    if(r.delivery==='home') return 'home';
+    if(r.delivery==='shop') return 'shop';
+    return '';
+  } else if(r._sheet==='TOS-New'){
+    return (r.deliveryShopName==='-'||r.deliveryShopName==='')?'home':'shop';
+  }
+  return '';
+}
+function computeSimTypeDeliveryAgg(delFilter){
+  const jFilter=_simTypeJourneyFilter.size>0?_simTypeJourneyFilter:null; // null = All Journey (ครบ 6)
+  const res={}; // {month:{Physical:n, eSIM:n}}
+  (DATA._rows||[]).forEach(r=>{
+    if(!GA_POST_J.includes(r.journey)||!r.sim_type) return;
+    if(jFilter&&!jFilter.has(r.journey)) return;
+    if(r.status!=='completed') return; // fix เป็น completed เท่านั้น (v4.07) — ไม่ผูกกับ toggle สถานะ Confirm/Cancel ใน Settings อีกต่อไป เพราะ Confirm รวม in-progress ด้วย
+    if(delFilter&&delFilter!=='all'&&rowDeliveryKey(r)!==delFilter) return;
+    if(!res[r.month]) res[r.month]={};
+    res[r.month][r.sim_type]=(res[r.month][r.sim_type]||0)+1;
+  });
+  return res;
+}
+function setSimTypeDelFilter(f,el){
+  _simTypeDelFilter=f;
+  document.querySelectorAll('#simtype-del-filter .sc').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+  if(DATA.order) renderGAPost2();
+}
+function toggleSimTypeJourneyChip(el){
+  const j=el.dataset.j;
+  if(_simTypeJourneyFilter.has(j)){ _simTypeJourneyFilter.delete(j); el.classList.remove('on'); }
+  else { _simTypeJourneyFilter.add(j); el.classList.add('on'); }
+  document.getElementById('stj-chip-all').classList.toggle('on',_simTypeJourneyFilter.size===0);
+  if(DATA.order) renderGAPost2();
+}
+function toggleSimTypeJourneyAll(){
+  _simTypeJourneyFilter.clear();
+  document.querySelectorAll('#simtype-journey-filter .sc[data-j]').forEach(c=>c.classList.remove('on'));
+  document.getElementById('stj-chip-all').classList.add('on');
+  if(DATA.order) renderGAPost2();
+}
+function toggleSimTypeInfo(){const b=document.getElementById('simtype-info-box');if(!b)return;b.classList.toggle('open');const btn=document.getElementById('simtype-info-btn');if(btn){btn.style.background=b.classList.contains('open')?'#000':'';btn.style.color=b.classList.contains('open')?'#fff':'';}}
+
+// ── Campaign: เบอร์มงคล (Lucky SIM order) / 5G MyPlan (DIY order) ──
+// scope: 6 GA Postpaid journeys, status completed เท่านั้น, TOS-New เท่านั้น (TOS-OLD ไม่มี column นี้)
+let _campaignDelFilter='home'; // 'all' | 'home' | 'shop' — default = home ตามที่กำหนด
+function computeCampaignAgg(delFilter){
+  const df=delFilter||_campaignDelFilter;
+  const res={}; // {month:{lucky:n, diy:n}}
+  (DATA._rows||[]).forEach(r=>{
+    if(!GA_POST_J.includes(r.journey)) return;
+    if(r.status!=='completed') return;
+    if(r._sheet!=='TOS-New') return;
+    if(!r.isLuckySim&&!r.isDiy) return;
+    if(df&&df!=='all'&&rowDeliveryKey(r)!==df) return;
+    if(!res[r.month]) res[r.month]={lucky:0,diy:0};
+    if(r.isLuckySim) res[r.month].lucky++;
+    if(r.isDiy) res[r.month].diy++;
+  });
+  return res;
+}
+function setCampaignDelFilter(f,el){
+  _campaignDelFilter=f;
+  document.querySelectorAll('#campaign-del-filter .sc').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+  if(DATA.order) renderCampaign();
+}
+function toggleCampaignInfo(){const b=document.getElementById('campaign-info-box');if(!b)return;b.classList.toggle('open');const btn=document.getElementById('campaign-info-btn');if(btn){btn.style.background=b.classList.contains('open')?'#000':'';btn.style.color=b.classList.contains('open')?'#fff':'';}}
+function renderCampaign(){
+  if(!DATA||!MONTHS.length) return;
+  const camp=computeCampaignAgg();
+  const luckyV=MONTHS.map(m=>(camp[m]||{}).lucky||0);
+  const diyV=MONTHS.map(m=>(camp[m]||{}).diy||0);
+  mkBar2('chart-campaign',[{label:'เบอร์มงคล',vals:luckyV,color:'#e02424'},{label:'5G MyPlan',vals:diyV,color:'#1a56db'}]);
+  const momOf=(vals,i)=>{if(i===0||vals[i-1]===0) return null; return ((vals[i]-vals[i-1])/vals[i-1]*100);};
+  const momCell=(vals,i)=>{const p=momOf(vals,i); if(p===null) return '<span style="color:var(--mid)">–</span>'; const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—'); return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;};
+  const rows=MONTHS.map((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    return `<tr><td style="padding:5px 8px">${TH_MONTHS[mo-1]} ${yr}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${luckyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(luckyV,i)}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${diyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(diyV,i)}</td></tr>`;
+  }).join('');
+  const totalLucky=luckyV.reduce((a,b)=>a+b,0), totalDiy=diyV.reduce((a,b)=>a+b,0);
+  document.getElementById('campaign-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เดือน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เบอร์มงคล</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">MoM</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">5G MyPlan</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">MoM</th></tr></thead><tbody>${rows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${totalLucky.toLocaleString()}</td><td></td><td style="text-align:right;padding:5px 8px">${totalDiy.toLocaleString()}</td><td></td></tr></tfoot></table>`;
+}
 const J_COLORS={'Device Bundle New':'#1a56db','Device Bundle Existing':'#7e3af2','Device Bundle P2P':'#0e9f6e','Device Bundle MNP 1 Step':'#ff5a1f','Device Bundle MNP 2 Step':'#f59e0b','Device Only':'#6366f1','SIM Only - Postpaid':'#e02424','SIM Only - Pre to Post':'#be123c','SIM Only - MNP Postpaid':'#f472b6','SIM Only - Prepaid':'#00C8FF','SIM Only - MNP Prepaid':'#0284c7','IOT/OTT subscription':'#64748b'};
 let CFG={status:'confirm',threshold:50,topN:5,sheet:'all',devJourneyFiltered:true};
 let RAW_ROWS=null; // เก็บ allRows ก่อน filter เพื่อ re-aggregate เมื่อ sheet filter เปลี่ยน
@@ -7277,7 +7475,7 @@ function renderPayFail(){
   });
   tbl.innerHTML=h+`</tbody></table>`;
 }
-function renderAll(){if(!DATA.order)return;renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();initDSDTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
+function renderAll(){if(!DATA.order)return;initDevUtmFilter();renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderGAPrepaid2();initGAPREDTFilters();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();initDSDTFilters();initGAPDTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
 
 function renderOverview2(){
   const sts=getSts();
@@ -7296,7 +7494,7 @@ function renderTrend2(){
   document.getElementById('trend-table').innerHTML=mkTbl2(['',...ML,'รวม'],rows,null);
 }
 function renderDevSold2(){
-  const dc2=mAgg2(DATA.devCat);
+  const dc2=devSoldCatAgg(_devUtmFilter);
   const cats=['Smartphone','Tablet','Smartwatch','Accessories'];
   const catColors={'Smartphone':'#1a56db','Tablet':'#0e9f6e','Smartwatch':'#ff5a1f','Accessories':'#9333ea'};
   const catDash={'Smartphone':[],'Tablet':[5,3],'Smartwatch':[3,3],'Accessories':[8,3]};
@@ -7305,14 +7503,7 @@ function renderDevSold2(){
   mkLine2('chart-dev-cat',cats.map(cat=>({label:cat,vals:MONTHS.map(m=>gv2(dc2,m,cat)),color:catColors[cat],dash:catDash[cat]})));
   const catRows=cats.map(cat=>{const vals=MONTHS.map(m=>gv2(dc2,m,cat));const total=vals.reduce((a,b)=>a+b,0);return[cat,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(total)];}).sort((a,b)=>parseInt(String(a[a.length-1]).replace(/,/g,''))<parseInt(String(b[b.length-1]).replace(/,/g,''))?1:-1);
   document.getElementById('dev-cat-tbl').innerHTML=mkTbl2(['Category',...ML,'รวม'],catRows,['รวม',...totals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,totals[i-1])}`:fmt(v)),fmt(totals.reduce((a,b)=>a+b,0))]);
-  const joData={};
-  if(CFG.devJourneyFiltered){
-    // กรองเหมือน KPI: ใช้ DATA.devJourney (ผ่าน isDevEligible)
-    getSts().forEach(st=>{Object.entries(DATA.devJourney[st]||{}).forEach(([m,kv])=>{Object.entries(kv).forEach(([j,cnt])=>{if(!DEV_J2.includes(j))return;if(!joData[j])joData[j]=MONTHS.map(()=>0);const mi=MONTHS.indexOf(m);if(mi>=0)joData[j][mi]+=cnt;});});});
-  } else {
-    // นับทั้งหมด: ใช้ DATA.journeyOp (แบบเดิม)
-    getSts().forEach(st=>{Object.entries(DATA.journeyOp[st]||{}).forEach(([j,opMap])=>{if(!DEV_J2.includes(j))return;if(!joData[j])joData[j]=MONTHS.map(()=>0);Object.entries(opMap).forEach(([op,mMap])=>{MONTHS.forEach((m,mi)=>{joData[j][mi]+=(mMap[m]||0);});});});});
-  }
+  const joData=CFG.devJourneyFiltered?devSoldJourneyAgg(_devUtmFilter):devSoldJourneyOpAgg(_devUtmFilter);
   const jrnEntries=Object.entries(joData).sort((a,b)=>b[1].reduce((s,v)=>s+v,0)-a[1].reduce((s,v)=>s+v,0));
   mkBar2('chart-dev-jrn',jrnEntries.map(([j,vals])=>({label:j,vals,color:J_COLORS[j]||'#aaa'})),true,false);
   const jrnRows=jrnEntries.map(([j,vals])=>{const tot=vals.reduce((a,b)=>a+b,0);return[j,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(tot)];});
@@ -7368,10 +7559,11 @@ function renderGAPost2(){
   const homeV=MONTHS.map(m=>gv2(sd,m,'home')),shopV=MONTHS.map(m=>gv2(sd,m,'shop'));
   mkBar100('chart-gap-del',[{label:'Delivery to Home',vals:homeV,color:'#000'},{label:'Pick Up at Shop',vals:shopV,color:'#7F7F7F'}]);
   document.getElementById('gap-del-tbl').innerHTML=mkTbl2(['Delivery',...ML,'รวม'],[['🏠 Home',...homeV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,homeV[i-1])}`:fmt(v)),fmt(homeV.reduce((a,b)=>a+b,0))],['🏪 Shop',...shopV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,shopV[i-1])}`:fmt(v)),fmt(shopV.reduce((a,b)=>a+b,0))]],null);
-  const st2=mAgg2(DATA.simType);
+  const st2=computeSimTypeDeliveryAgg(_simTypeDelFilter);
   const physV=MONTHS.map(m=>gv2(st2,m,'Physical')),esimV=MONTHS.map(m=>gv2(st2,m,'eSIM'));
   mkBar100('chart-gap-sim',[{label:'Physical SIM',vals:physV,color:'#000'},{label:'eSIM',vals:esimV,color:'#00C8FF'}]);
   document.getElementById('gap-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,physV[i-1])}`:fmt(v)),fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,esimV[i-1])}`:fmt(v)),fmt(esimV.reduce((a,b)=>a+b,0))]],null);
+  renderCampaign();
 }
 function renderRC2(){
   const pkgAll=mFlat2(DATA.pkg);
@@ -7405,7 +7597,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v3.17_20260817';
+const DASH_VERSION   = 'v4.13_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7416,6 +7608,20 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.13_20260830', note:'เพิ่ม Tab ใหม่ "GA – Prepaid" ต่อท้าย GA – Postpaid มี 5 sections: (1) Summary by month, (2) GA Prepaid แยก Journey (SIM Only - Prepaid, SIM Only - MNP Prepaid), (3) Daily Trend (พร้อม as-of logic เหมือน GA Postpaid), (4) Physical vs eSIM (มี Journey filter All/SIM Prepaid/MNP Prepaid), (5) Campaign — Go Travel SIM / Tourist SIM / Mass (แยกจาก product_name: ขึ้นต้น "GO Travel"→Go Travel SIM, ขึ้นต้น "THAILAND TOURIST"→Tourist SIM, ที่เหลือ→Mass ทั้ง TOS-OLD คอลัมน์ product_name และ TOS-New คอลัมน์ Product Name) · scope = 2 GA Prepaid journeys, status completed เท่านั้น (fix ไม่ผูก toggle) · **นับหน่วยด้วยผลรวม Quantity Cart แทนจำนวนแถว** (1 order ซื้อได้หลายซิม) — TOS-OLD ไม่มี column นี้จึงคิดเป็น 1 เสมอ · ไม่มี filter Delivery/UTM เพราะ Prepaid ส่งถึงบ้านเสมอและไม่มี UTM ที่มีความหมาย · สถาปัตยกรรม: รียูส computeGAPostRowFlags() เดิม (ครอบคลุม Prepaid อยู่แล้ว) พร้อม fix ช่องโหว่เดิมที่ qty จาก Quantity Cart ใช้เฉพาะ sim_only_prepaid ไม่ครอบคลุม sim_only_mnp_prepaid (ขยายให้ครอบคลุมทั้งคู่แล้ว) · ทดสอบด้วยข้อมูลจำลองครบทั้ง 2 sheets, 3 campaign categories, in-progress exclusion, และ Quantity Cart multiplier — ยืนยันตัวเลขถูกต้องทุกจุด' },
+  { v:'v4.12_20260830', note:'Section "Campaign — เบอร์มงคล & 5G MyPlan": เพิ่ม filter Delivery — All, Delivery to Home, Pick Up at Shop โดยใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop (rowDeliveryKey: TOS-OLD ดู delivery_location, TOS-New ดู Delivery Shop Name) — **default select = Delivery to Home** (ไม่ใช่ All); อัปเดต tooltip ให้ระบุ default filter ที่ใช้ — ทดสอบด้วยข้อมูลจำลองแล้วว่า default(home) ตัดยอด shop ออกถูกต้อง และ All = Home + Shop ตรงกัน' },
+  { v:'v4.11_20260830', note:'Fix ค่า UTM Source = "-" (dash) ให้จัดเป็น "ไม่ระบุ" เหมือนค่าว่าง (เดิมมีแค่ค่าว่าง/None ที่แปลงเป็น "ไม่ระบุ" แต่ "-" หลุดไปเป็น bucket แยกต่างหาก) — ตรวจข้อมูลจริงพบว่า UTM Source ของคำสั่งซื้อ Device Sold ส่วนใหญ่เป็นค่าว่างหรือ "-" (ค่า UTM จริงเช่น trueapp/facebook/google-search เกือบทั้งหมดอยู่ที่คำสั่งซื้อ SIM Only ฝั่ง GA Postpaid แทน ซึ่งเป็นลักษณะข้อมูลจริง ไม่ใช่ bug) — ยืนยันกับ user แล้วว่า filter ที่ Device Sold ถูกต้องแล้ว ไม่ต้องเพิ่ม filter ที่ GA-Postpaid เพิ่มในตอนนี้' },
+  { v:'v4.10_20260830', note:'อัปเดต data source: TOS-New เพิ่ม column "UTM Source" (และ "Privilege Name" สะกดถูก แต่ยังไม่ได้ใช้งาน) — เพิ่ม filter "UTM Source" (default = All) ที่ใช้ร่วมกันทุก section ในแท็บ Device Sold: dev-kpis, Device Sold แยก Category, Device Sold แยก Journey, Device Sold Daily Trend, Brand Scorecard, Model Scorecard · สถาปัตยกรรม: เพิ่ม field utmSource ใน processRows (TOS-New เท่านั้น, อื่น ๆ = "ไม่ระบุ") + สร้างชุดฟังก์ชันคำนวณสดจาก DATA._rows แทนการอ่าน aggregate เดิม (computeDeviceSoldUnits/devSoldCatAgg/devSoldJourneyAgg/devSoldJourneyOpAgg/devSoldBrandAgg/devSoldModelAgg) เพื่อไม่กระทบ aggregate ที่ tab อื่นอาจใช้ร่วม · dropdown UTM Source อยู่บนสุดของแท็บ ตัวเลือกดึงจากข้อมูลจริงอัตโนมัติ · ทดสอบด้วยข้อมูลจำลอง (2 UTM + 1 ไม่ระบุ) ยืนยันว่ากรองถูกต้องทุกฟังก์ชัน รวม Daily Trend · หมายเหตุ: drilldown modal (คลิก Brand→Model, Model→Daily) ยังใช้ logic เดิม ไม่ผูกกับ filter นี้ในรอบนี้' },
+  { v:'v4.09_20260830', note:'เพิ่ม Section "Campaign — เบอร์มงคล & 5G MyPlan" ใน tab GA-Postpaid (หลัง Physical SIM vs eSIM) — แสดงยอดรายเดือนพร้อม MoM% ของทั้ง 2 campaign: เบอร์มงคล = TOS-New column Lucky SIM order = Y, 5G MyPlan = TOS-New column DIY order = Y · scope = 6 GA Postpaid journeys, status completed เท่านั้น (เหมือน section อื่นในแท็บ), TOS-New เท่านั้น (TOS-OLD ไม่มี column นี้) · เพิ่ม field isLuckySim/isDiy ใน processRows เพื่อรองรับ · ทดสอบด้วยข้อมูลจำลองแล้วว่านับถูกต้อง (ตัด in-progress ออก, นับ 2 flags แยกกันได้ในแถวเดียวกัน)' },
+  { v:'v4.08_20260830', note:'Fix "GA Postpaid Daily Trend": Active Days และ insight banner เดิมเทียบกับจำนวนวันเต็มเดือน (เช่น 31 วัน) ทำให้ดูเหมือนข้อมูล "หยุด" ทั้งที่จริงแค่ order ในวันหลัง ๆ ยังไม่ completed (ปกติของ order-processing lag) — เปลี่ยนมาเทียบกับ **as of** แทน (เพิ่มฟังก์ชัน asOfDayForMonth() หาวันสุดท้ายที่มีข้อมูล TOS-New จริงในเดือนนั้น ไม่สนสถานะ/journey เหมือน tag "as of" บนสุดของ dashboard): (1) Active Days แสดง "จาก X วัน (as of)" แทน "จาก 31 วัน", (2) insight banner เทียบ lastActive กับ as-of day แทน daysInMonth เต็ม, (3) แถบกราฟหลัง as-of เปลี่ยนเป็นลายทางแทนสีเทาทึบ เพื่อสื่อว่า "ยังไม่ถึงวันนี้" ต่างจาก "ถึงแล้วแต่ไม่มียอด" — ทดสอบแล้วด้วยข้อมูลจำลอง (completed 2 วันแรก + in-progress อีก 2 วันหลัง) ยืนยันว่า denominator เปลี่ยนถูกต้องตาม as-of' },
+  { v:'v4.07_20260830', note:'Fix Section "Physical SIM vs eSIM" ให้นับเฉพาะ status completed เท่านั้น (เดิมผูกกับ toggle Confirm/Cancel ใน Settings ซึ่ง Confirm รวม completed+in-progress ทำให้ยอดสูงเกินจริงเมื่อเทียบกับที่ user นับมือเฉพาะ completed) — ตัด getSts() ออก เปลี่ยนเป็น hardcode r.status===\'completed\' เหมือนตาราง GA Postpaid แยก Journey และ SIM Only Delivery Home vs Shop; อัปเดต tooltip ให้ระบุชัดว่า fix completed อย่างเดียว ไม่ผูกกับ Settings แล้ว — root cause ของกรณี eSIM เดือน ส.ค. = 291 (เดิม รวม in-progress) vs 175 (user นับมือ completed อย่างเดียว) คือจุดนี้' },
+  { v:'v4.06_20260830', note:'ปรับรูปแบบเลขเวอร์ชัน v4 จาก v4.x (1 หลัก) เป็น v4.xx (2 หลัก, zero-padded) เพื่อรองรับการอัปเดตเกิน 9 ครั้งในเวอร์ชัน 4 — เปลี่ยนย้อนหลังทุก entry เดิม: v4.0→v4.00, v4.1→v4.01, v4.2→v4.02, v4.3→v4.03, v4.4→v4.04, v4.5→v4.05 (เนื้อหา/logic ไม่เปลี่ยน เปลี่ยนแค่รูปแบบเลข)' },
+  { v:'v4.05_20260830', note:'Section "Physical SIM vs eSIM": เพิ่ม filter Journey (multi-select chip) — "All Journey" หรือเลือกเฉพาะ journey ที่ต้องการจาก 6 GA Postpaid journeys, **default select เฉพาะ SIM Only - Postpaid + SIM Only - MNP Postpaid** (ไม่ใช่ All) — ทำงานร่วมกับ filter Delivery เดิมได้ (AND condition); อัปเดต tooltip ให้ระบุ default journey filter ที่ใช้ — ทดสอบแล้วว่า default filter ตัด journey อื่นออกถูกต้อง และ All Journey ให้ยอดครบเหมือนเดิม' },
+  { v:'v4.04_20260830', note:'Section "Physical SIM vs eSIM": (1) เพิ่ม filter Delivery — All (default), Delivery to Home, Pick Up at Shop โดยใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop (TOS-OLD: delivery_location, TOS-New: Delivery Shop Name); (2) เพิ่มปุ่ม tooltip (ⓘ) อธิบายที่มาของข้อมูล — journey scope (6 GA Postpaid journeys), logic แยก Physical/eSIM (TOS-New: SIM Source Type, TOS-OLD: ไม่มี column นี้ → Physical ทั้งหมด), และเงื่อนไข filter delivery — ทดสอบ cross-check แล้วว่า All = Home + Shop ตรงกัน' },
+  { v:'v4.03_20260830', note:'ปรับ "SIM Only — Delivery Home vs Shop" ให้นับเฉพาะ status completed เท่านั้น (เดิมนับ completed + in-progress) — ตัดเงื่อนไข in-progress ออกจาก core filter เพื่อให้สอดคล้องกับ GA Postpaid ที่นับ completed เท่านั้นอยู่แล้ว; อัปเดตข้อความ info-box ทั้ง 2 การ์ด (SIM Only Delivery + GA Postpaid แยก Journey) ให้ตรงกับ logic ใหม่ — ส่วนต่างที่เหลือระหว่าง 2 ตารางนี้คือ TOS-New Pick Up at Shop ที่ GA ไม่นับเท่านั้น' },
+  { v:'v4.02_20260830', note:'เพิ่ม section "GA Postpaid Daily Trend" ใน tab GA-Postpaid (ระหว่าง GA Postpaid แยก Journey กับ SIM Only — Delivery Home vs Shop) — clone feature เดียวกับ Device Sold Daily Trend: filter by Month (default ล่าสุด) + Journey chip (default All, เฉพาะ 6 GA Postpaid journeys ไม่รวม Prepaid), KPI cards, insight banner, daily bar chart, ตารางรายวัน toggle ได้ · นับด้วย logic เดียวกับตาราง GA Postpaid แยก Journey เป๊ะ (TOS-OLD: completed + delivery≠shop, TOS-New: Fai_Order Stage=Completed + Delivery Shop Name=\'-\', รวม dedup order ที่มีหลายแถวเข้าเกณฑ์ GA พร้อมกัน) — ยอดรวมตรงกับ agg.gaJourney ที่ตารางเดิมใช้ (ทดสอบ cross-check แล้ว)' },
+  { v:'v4.01_20260830', note:'แก้ default tab "Device Sold" ให้มี class active (on) ตั้งแต่โหลดหน้าเว็บครั้งแรก — เดิมเนื้อหาแสดงถูกต้องแต่ปุ่ม tab ไม่มี highlight ให้เห็นว่ากำลังเลือกอยู่ที่ tab ไหน' },
+  { v:'v4.00_20260830', note:'เริ่ม Dashboard version 4 — clone มาจาก v3.17_20260817 (หลังแก้ logic Physical SIM vs eSIM) เพื่อเป็น baseline สำหรับการพัฒนาต่อ' },
   { v:'v3.17_20260817', note:'แก้ logic Physical SIM vs eSIM: TOS-New ใช้ column "SIM Source Type" (physical→Physical, esim→eSIM) แทน SIM Company=RF เดิม; TOS-OLD และ DOS ไม่มี SIM Source Type → จัดเป็น Physical ทั้งหมด; Journey scope ยังคงเป็น Postpaid only (ไม่รวม Prepaid)' },
   { v:'v3.16_20260816', note:'(1) เพิ่ม diagnostic console.log ก่อน parse parquet ทั้ง 2 จุด (pwFetchAndOpen + loadFromOneDrive): แสดง buf.byteLength, first4/last4 bytes เพื่อ debug "footer != PAR1" ใน browser (2) แก้ pwFetchAndOpen (login flow) จาก XLSX.read() → hyparquet.parquetReadObjects() ให้ตรงกับ loadFromOneDrive — root cause ของ error ไม่พบ Sheet DOS/TOS-OLD/TOS-New' },
   { v:'v3.15_20260816', note:'(1) Device Sold Daily Trend: เพิ่ม section ใน tab Device Sold — filter by Month (dropdown, default ล่าสุด) + Journey (multi-select chip, default All); KPI cards (Total Units, Avg/วัน, Peak Day, Active Days + %MoM); daily bar chart นับ units ตาม logic Device Sold เดียวกัน รวม getDeviceOnlyItems สำหรับ TOS-New Device Only; insight alert; ตารางรายวัน % ของเดือน; toggleable table (2) เปลี่ยน data source format จาก .xlsx → .parquet (combined 3 sheets ด้วย _sheet column, snappy compression ~4.5MB) + เปลี่ยน parser จาก SheetJS → hyparquet; URL: raw.githubusercontent.com/naruemol-vee/ecom-dashboard/main/public/data.parquet' },
@@ -7622,6 +7828,130 @@ function toggleODTJrnInfo(){document.getElementById('odt-jrn-info-box').classLis
 const DEV_SOLD_J=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only','Single Product'];
 const DEV_SOLD_CATS=['Smartphone','Tablet','Smartwatch','Accessories'];
 
+// ── UTM Source filter สำหรับทุก section ใน tab Device Sold (v4.10) ──
+let _devUtmFilter='all'; // 'all' | ค่า utmSource ที่เลือก
+let _devSoldUnitsCache=null; // cache: array ของ device-sold units (dedup+item-expansion แล้ว), ขนานกับ DATA._rows
+function computeDeviceSoldUnits(){
+  if(_devSoldUnitsCache&&_devSoldUnitsCache._rowsRef===DATA._rows) return _devSoldUnitsCache;
+  const rows=DATA._rows||[];
+  const SIM_JOURNEYS=['SIM Only - Postpaid','SIM Only - Prepaid','SIM Only - MNP Postpaid','SIM Only - MNP Prepaid','SIM Only - Pre to Post'];
+  const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch','Accessories'];
+  const orderHasSim={},orderHasDev={};
+  rows.forEach(r=>{
+    if(!r.orderIdForDedup) return;
+    if(SIM_JOURNEYS.includes(r.journey)) orderHasSim[r.orderIdForDedup]=true;
+    if(DEV_CATS_CHECK.includes(r.product_cat)) orderHasDev[r.orderIdForDedup]=true;
+  });
+  const mixedOrderIds=new Set(Object.keys(orderHasSim).filter(oid=>orderHasDev[oid]));
+  const devCountedOrderIds=new Set();
+  const units=[];
+  rows.forEach(r=>{
+    const isTosNewDeviceOnly=r._sheet==='TOS-New'&&r.journey==='Device Only';
+    if(isTosNewDeviceOnly){
+      const items=(typeof getDeviceOnlyItems==='function')?getDeviceOnlyItems(r):[];
+      items.forEach(it=>{
+        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple');
+        if(!eligible) return;
+        units.push({month:r.month,day:r.day,status:r.status,journey:r.journey,cat:it.cat,brand:it.brand,product_name:it.product_name,utmSource:r.utmSource});
+      });
+    } else {
+      const isDevEligible=DEV_SOLD_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&(r.product_cat!=='Accessories'||r.brand==='Apple');
+      const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
+      const alreadyCounted=isMixedOrder&&devCountedOrderIds.has(r.orderIdForDedup);
+      if(isDevEligible&&!alreadyCounted){
+        if(isMixedOrder) devCountedOrderIds.add(r.orderIdForDedup);
+        units.push({month:r.month,day:r.day,status:r.status,journey:r.journey,cat:r.product_cat,brand:r.brand,product_name:r.product_name,utmSource:r.utmSource});
+      }
+    }
+  });
+  units._rowsRef=DATA._rows;
+  _devSoldUnitsCache=units;
+  return units;
+}
+function devUtmValues(){
+  const set=new Set();
+  computeDeviceSoldUnits().forEach(u=>{ if(u.utmSource) set.add(u.utmSource); });
+  return [...set].sort((a,b)=>a==='ไม่ระบุ'?1:b==='ไม่ระบุ'?-1:a.localeCompare(b));
+}
+function devSoldCatAgg(utm,stsArr){
+  const sts=stsArr||getSts();
+  const res={};
+  computeDeviceSoldUnits().forEach(u=>{
+    if(!sts.includes(u.status)) return;
+    if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(!res[u.month]) res[u.month]={};
+    res[u.month][u.cat]=(res[u.month][u.cat]||0)+1;
+  });
+  return res;
+}
+function devSoldJourneyAgg(utm,stsArr){ // dedup-filtered mode (CFG.devJourneyFiltered=true)
+  const sts=stsArr||getSts();
+  const res={};
+  computeDeviceSoldUnits().forEach(u=>{
+    if(!sts.includes(u.status)) return;
+    if(!DEV_J2.includes(u.journey)) return;
+    if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(!res[u.journey]) res[u.journey]=MONTHS.map(()=>0);
+    const mi=MONTHS.indexOf(u.month);
+    if(mi>=0) res[u.journey][mi]++;
+  });
+  return res;
+}
+function devSoldJourneyOpAgg(utm,stsArr){ // raw mode (CFG.devJourneyFiltered=false) — นับทุก order ไม่กรอง device-eligible
+  const sts=stsArr||getSts();
+  const res={};
+  (DATA._rows||[]).forEach(r=>{
+    if(!r.journey||r.journey==='Other') return;
+    if(!DEV_J2.includes(r.journey)) return;
+    if(!sts.includes(r.status)) return;
+    if(utm&&utm!=='all'&&r.utmSource!==utm) return;
+    if(!res[r.journey]) res[r.journey]=MONTHS.map(()=>0);
+    const mi=MONTHS.indexOf(r.month);
+    if(mi>=0) res[r.journey][mi]++;
+  });
+  return res;
+}
+function devSoldBrandAgg(utm,stsArr){
+  const sts=stsArr||getSts();
+  const res={};
+  computeDeviceSoldUnits().forEach(u=>{
+    if(!sts.includes(u.status)) return;
+    if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(!u.brand||u.brand==='-'||String(u.brand).toLowerCase()==='true') return;
+    if(!res[u.month]) res[u.month]={};
+    res[u.month][u.brand]=(res[u.month][u.brand]||0)+1;
+  });
+  return res;
+}
+function devSoldModelAgg(utm,stsArr){ // returns {model+'|||'+brand: {month: count}}
+  const sts=stsArr||getSts();
+  const res={};
+  computeDeviceSoldUnits().forEach(u=>{
+    if(!sts.includes(u.status)) return;
+    if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(!u.product_name||u.product_name==='-') return;
+    const key=u.product_name+'|||'+u.brand;
+    if(!res[key]) res[key]={};
+    res[key][u.month]=(res[key][u.month]||0)+1;
+  });
+  return res;
+}
+function initDevUtmFilter(){
+  const sel=document.getElementById('dev-utm-sel');
+  if(!sel) return;
+  const vals=devUtmValues();
+  const cur=_devUtmFilter;
+  sel.innerHTML='<option value="all">All</option>'+vals.map(v=>`<option value="${v.replace(/"/g,'&quot;')}">${v}</option>`).join('');
+  sel.value=vals.includes(cur)?cur:'all';
+  _devUtmFilter=sel.value;
+}
+function setDevUtmFilter(){
+  const sel=document.getElementById('dev-utm-sel');
+  if(!sel) return;
+  _devUtmFilter=sel.value;
+  if(DATA.order) renderAll();
+}
+
 let _dsdtSelJourneys=new Set();
 
 function initDSDTFilters(){
@@ -7673,6 +8003,7 @@ function dsdtDailyUnits(month){
   if(!DATA||!DATA._rows) return {};
   const sts=getSts();
   const filterJ=_dsdtSelJourneys.size>0?_dsdtSelJourneys:null;
+  const utm=_devUtmFilter;
   const daily={};
   const countedOrders={};
   (DATA._rows||[]).forEach(r=>{
@@ -7680,6 +8011,7 @@ function dsdtDailyUnits(month){
     if(!sts.includes(r.status)) return;
     if(!DEV_SOLD_J.includes(r.journey)) return;
     if(filterJ&&!filterJ.has(r.journey)) return;
+    if(utm&&utm!=='all'&&r.utmSource!==utm) return;
     if(!daily[r.day]) daily[r.day]=0;
     // Device Only (TOS-New): count items via getDeviceOnlyItems
     if(r._sheet==='TOS-New'&&r.journey==='Device Only'&&typeof getDeviceOnlyItems==='function'){
@@ -7759,6 +8091,432 @@ function renderDSDT(){
     return`<tr style="${isWkd?'color:var(--mid)':''}"><td style="padding:4px 8px">${day} (${dow})</td><td style="text-align:right;padding:4px 8px;font-weight:${v===peak&&peak>0?'700':'400'}">${v.toLocaleString()}</td><td style="text-align:right;padding:4px 8px;color:${v===peak&&peak>0?'#0A6E45':'var(--mid)'}">${pct}%</td></tr>`;
   }).join('');
   document.getElementById('dsdt-tbl-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">วัน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Units</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">% ของเดือน</th></tr></thead><tbody>${tblRows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${total.toLocaleString()}</td><td style="text-align:right;padding:5px 8px">100%</td></tr></tfoot></table>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GA POSTPAID DAILY TREND (GAPDT)
+// ══════════════════════════════════════════════════════════════════
+// นับด้วย logic เดียวกับตาราง "GA Postpaid แยก Journey" เป๊ะ (ดู agg.gaJourney ใน processRows):
+//  TOS-OLD: order_status = completed + delivery_location != shop
+//  TOS-New: Fai_Order Stage = Completed + Delivery Shop Name = '-' (Delivery to Home)
+//  + dedup order ที่มีหลายแถวเข้าเกณฑ์ GA พร้อมกัน (นับ 1 ครั้ง/order)
+// เงื่อนไขนี้ fix เป็น completed เท่านั้น ไม่ผูกกับ toggle สถานะของ dashboard (เหมือนพฤติกรรมเดิมของ GA Postpaid)
+
+let _gapdtSelJourneys=new Set(); // empty = All
+let _gaPostRowFlagsCache=null; // cache: array ขนาน DATA._rows → {isGA, qty}
+
+function computeGAPostRowFlags(){
+  if(_gaPostRowFlagsCache && _gaPostRowFlagsCache._rowsRef===DATA._rows) return _gaPostRowFlagsCache;
+  const rows=DATA._rows||[];
+  const GA_POST_J_PRE=['Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step','SIM Only - Pre to Post','SIM Only - Postpaid','SIM Only - MNP Postpaid','SIM Only - Prepaid','SIM Only - MNP Prepaid'];
+  const TOS_NEW_GA_TYPES=['device_bundle_new','device_bundle_p2p','device_bundle_mnp_1_step','sim_only_p2p','sim_only_p2p_personalize','sim_only_postpaid','sim_only_mnp_postpaid','sim_only_prepaid','sim_only_mnp_prepaid'];
+  // Pre-pass: หา order ที่มีหลายแถวเข้าเกณฑ์ GA พร้อมกัน (ต้อง dedup)
+  const gaRowCountByOrder={};
+  rows.forEach(r=>{
+    if(!r.orderIdForDedup) return;
+    let rowIsGA=false;
+    if(r._sheet==='TOS-OLD'){
+      if(r.status==='completed'&&r.delivery!=='shop'&&GA_POST_J_PRE.includes(r.journey)) rowIsGA=true;
+    } else if(r._sheet==='TOS-New'){
+      const ot=String(r._rawOrderType||'').trim().toLowerCase();
+      if(r.status==='completed'&&(r.deliveryShopName==='-'||r.deliveryShopName==='')&&TOS_NEW_GA_TYPES.includes(ot)) rowIsGA=true;
+    }
+    if(rowIsGA) gaRowCountByOrder[r.orderIdForDedup]=(gaRowCountByOrder[r.orderIdForDedup]||0)+1;
+  });
+  const gaMixedOrderIds=new Set(Object.keys(gaRowCountByOrder).filter(oid=>gaRowCountByOrder[oid]>=2));
+  const gaCountedOrderIds=new Set();
+  const gaPostJourneysOld=['Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step','SIM Only - Pre to Post','SIM Only - Postpaid','SIM Only - MNP Postpaid'];
+  const flags=rows.map(r=>{
+    let isGA=false;
+    if(r._sheet==='TOS-OLD'){
+      if(r.status==='completed'&&r.delivery!=='shop'){
+        if(gaPostJourneysOld.includes(r.journey)) isGA=true;
+        else if(r.journey==='SIM Only - Prepaid'||r.journey==='SIM Only - MNP Prepaid') isGA=true;
+      }
+    } else if(r._sheet==='TOS-New'){
+      const ot=String(r._rawOrderType||'').trim().toLowerCase();
+      if(r.status==='completed'&&(r.deliveryShopName==='-'||r.deliveryShopName==='')&&TOS_NEW_GA_TYPES.includes(ot)) isGA=true;
+    }
+    const isMixedOrderGA=r.orderIdForDedup&&gaMixedOrderIds.has(r.orderIdForDedup);
+    const alreadyCountedGA=isMixedOrderGA&&gaCountedOrderIds.has(r.orderIdForDedup);
+    let qty=0;
+    const counted=isGA&&!alreadyCountedGA;
+    if(counted){
+      if(isMixedOrderGA) gaCountedOrderIds.add(r.orderIdForDedup);
+      qty=1;
+      if(r._sheet==='TOS-New'&&['sim_only_prepaid','sim_only_mnp_prepaid'].includes(String(r._rawOrderType||'').trim().toLowerCase())){
+        const q=parseQtyCart(r._qtyCartRaw);
+        qty=(isNaN(q)||q<=0)?1:q;
+      }
+    }
+    return {isGA:counted, qty};
+  });
+  flags._rowsRef=DATA._rows;
+  _gaPostRowFlagsCache=flags;
+  return flags;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GA PREPAID TAB (v4.13)
+// ══════════════════════════════════════════════════════════════════
+// scope: GA_PRE_J = ['SIM Only - Prepaid','SIM Only - MNP Prepaid'], status completed เท่านั้น
+// นับหน่วยด้วยผลรวม Quantity Cart (ใช้ flags จาก computeGAPostRowFlags ซึ่งคำนวณ qty ให้แล้ว)
+// ไม่มี filter Delivery/UTM เพราะ Prepaid ส่งถึงบ้านเสมอ ไม่มี UTM ที่มีความหมาย
+
+function computeGAPreAgg(){ // {month:{journey:qty}}
+  const flags=computeGAPostRowFlags();
+  const res={};
+  (DATA._rows||[]).forEach((r,i)=>{
+    if(!GA_PRE_J.includes(r.journey)) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    if(!res[r.month]) res[r.month]={};
+    res[r.month][r.journey]=(res[r.month][r.journey]||0)+f.qty;
+  });
+  return res;
+}
+function toggleGaPreJrnInfo(){const b=document.getElementById('gapre-jrn-info-box');if(!b)return;b.classList.toggle('open');const btn=document.getElementById('gapre-jrn-info-btn');if(btn){btn.style.background=b.classList.contains('open')?'#000':'';btn.style.color=b.classList.contains('open')?'#fff':'';}}
+function toggleGaPreSimInfo(){const b=document.getElementById('gapresim-info-box');if(!b)return;b.classList.toggle('open');const btn=document.getElementById('gapresim-info-btn');if(btn){btn.style.background=b.classList.contains('open')?'#000':'';btn.style.color=b.classList.contains('open')?'#fff':'';}}
+function toggleGaPreCampInfo(){const b=document.getElementById('gapre-camp-info-box');if(!b)return;b.classList.toggle('open');const btn=document.getElementById('gapre-camp-info-btn');if(btn){btn.style.background=b.classList.contains('open')?'#000':'';btn.style.color=b.classList.contains('open')?'#fff':'';}}
+
+// Physical vs eSIM (Prepaid) — Journey filter (All / SIM Prepaid / MNP Prepaid)
+let _gapreSimJourney='all';
+function setGaPreSimJourney(j,el){
+  _gapreSimJourney=j;
+  document.querySelectorAll('#gapre-journey-filter .sc').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+  if(DATA.order) renderGAPrepaid2();
+}
+function computeGAPreSimTypeAgg(journeyFilter){
+  const flags=computeGAPostRowFlags();
+  const jf=journeyFilter&&journeyFilter!=='all'?journeyFilter:null;
+  const res={};
+  (DATA._rows||[]).forEach((r,i)=>{
+    if(!GA_PRE_J.includes(r.journey)||!r.sim_type) return;
+    if(jf&&r.journey!==jf) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    if(!res[r.month]) res[r.month]={};
+    res[r.month][r.sim_type]=(res[r.month][r.sim_type]||0)+f.qty;
+  });
+  return res;
+}
+
+// Campaign: Go Travel SIM / Tourist SIM / Mass — จาก product_name (ทั้ง TOS-OLD และ TOS-New)
+function classifyPrepaidCampaign(productName){
+  const pn=String(productName||'').trim().toUpperCase();
+  if(pn.startsWith('GO TRAVEL')) return 'Go Travel SIM';
+  if(pn.startsWith('THAILAND TOURIST')) return 'Tourist SIM';
+  return 'Mass';
+}
+function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM':qty,'Mass':qty}}
+  const flags=computeGAPostRowFlags();
+  const res={};
+  (DATA._rows||[]).forEach((r,i)=>{
+    if(!GA_PRE_J.includes(r.journey)) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    const cat=classifyPrepaidCampaign(r.product_name);
+    if(!res[r.month]) res[r.month]={'Go Travel SIM':0,'Tourist SIM':0,'Mass':0};
+    res[r.month][cat]+=f.qty;
+  });
+  return res;
+}
+
+function renderGAPrepaid2(){
+  if(!DATA||!DATA.order||!MONTHS.length) return;
+  // 1) Summary by month (KPI)
+  const preAgg=computeGAPreAgg();
+  const kpiV=MONTHS.map(m=>GA_PRE_J.reduce((s,j)=>s+((preAgg[m]||{})[j]||0),0));
+  document.getElementById('gapre-kpis').innerHTML=mkKpi2(kpiV);
+  // 2) GA Prepaid แยก Journey
+  const jrnColors={'SIM Only - Prepaid':'#00C8FF','SIM Only - MNP Prepaid':'#0284c7'};
+  mkBar100('chart-gapre-jrn',GA_PRE_J.map(j=>({label:j,vals:MONTHS.map(m=>(preAgg[m]||{})[j]||0),color:jrnColors[j]||'#aaa'})));
+  const jrnRows=GA_PRE_J.map(j=>{const vals=MONTHS.map(m=>(preAgg[m]||{})[j]||0);const total=vals.reduce((a,b)=>a+b,0);return[j,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(total)];});
+  const jrnTotals=MONTHS.map((_,mi)=>jrnRows.reduce((s,r)=>s+parseInt(String(r[mi+1]).replace(/<[^>]*>/g,'').replace(/,/g,'')||0),0));
+  const jrnGrand=jrnTotals.reduce((a,b)=>a+b,0);
+  const jrnTotRow=['รวมทุก Journey',...jrnTotals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,jrnTotals[i-1])}`:fmt(v)),fmt(jrnGrand)];
+  document.getElementById('gapre-jrn-tbl').innerHTML=mkTbl2(['Journey',...ML,'รวม'],jrnRows,jrnTotRow);
+  // 3) Physical vs eSIM
+  const st2=computeGAPreSimTypeAgg(_gapreSimJourney);
+  const physV=MONTHS.map(m=>gv2(st2,m,'Physical')),esimV=MONTHS.map(m=>gv2(st2,m,'eSIM'));
+  mkBar100('chart-gapre-sim',[{label:'Physical SIM',vals:physV,color:'#000'},{label:'eSIM',vals:esimV,color:'#00C8FF'}]);
+  document.getElementById('gapre-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,physV[i-1])}`:fmt(v)),fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,esimV[i-1])}`:fmt(v)),fmt(esimV.reduce((a,b)=>a+b,0))]],null);
+  // 4) Campaign: Go Travel SIM / Tourist SIM / Mass
+  const camp=computeGAPreCampaignAgg();
+  const campCats=['Go Travel SIM','Tourist SIM','Mass'];
+  const campColors={'Go Travel SIM':'#0e9f6e','Tourist SIM':'#f59e0b','Mass':'#6366f1'};
+  const campV={}; campCats.forEach(c=>{campV[c]=MONTHS.map(m=>(camp[m]||{})[c]||0);});
+  mkBar2('chart-gapre-campaign',campCats.map(c=>({label:c,vals:campV[c],color:campColors[c]})));
+  const momOf=(vals,i)=>{if(i===0||vals[i-1]===0) return null; return ((vals[i]-vals[i-1])/vals[i-1]*100);};
+  const momCell=(vals,i)=>{const p=momOf(vals,i); if(p===null) return '<span style="color:var(--mid)">–</span>'; const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—'); return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;};
+  const campRows=MONTHS.map((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    const cells=campCats.map(c=>`<td style="text-align:right;padding:5px 8px;font-weight:600">${campV[c][i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(campV[c],i)}</td>`).join('');
+    return `<tr><td style="padding:5px 8px">${TH_MONTHS[mo-1]} ${yr}</td>${cells}</tr>`;
+  }).join('');
+  const totRow=campCats.map(c=>`<td style="text-align:right;padding:5px 8px">${campV[c].reduce((a,b)=>a+b,0).toLocaleString()}</td><td></td>`).join('');
+  const headCells=campCats.map(c=>`<th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">${c}</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">MoM</th>`).join('');
+  document.getElementById('gapre-campaign-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เดือน</th>${headCells}</tr></thead><tbody>${campRows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td>${totRow}</tr></tfoot></table>`;
+}
+
+// GA Prepaid Daily Trend
+let _gapredtSelJourneys=new Set(); // empty = All
+function initGAPREDTFilters(){
+  if(!DATA||!MONTHS.length) return;
+  const sel=document.getElementById('gapredt-month-sel');
+  if(!sel) return;
+  sel.innerHTML='';
+  [...MONTHS].reverse().forEach((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    const lbl=TH_MONTHS[mo-1]+' '+yr;
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=lbl+(i===0?' (ล่าสุด)':'');
+    if(i===0) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  const chipWrap=document.getElementById('gapredt-journey-chips');
+  if(!chipWrap) return;
+  chipWrap.innerHTML='';
+  const allChip=document.createElement('span');
+  allChip.className='sc on'; allChip.id='gapredt-chip-all'; allChip.textContent='All Journey';
+  allChip.onclick=function(){
+    _gapredtSelJourneys.clear();
+    chipWrap.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
+    allChip.classList.add('on');
+    renderGAPREDT();
+  };
+  chipWrap.appendChild(allChip);
+  GA_PRE_J.forEach(j=>{
+    const c=document.createElement('span');
+    c.className='sc'; c.dataset.j=j;
+    c.textContent=j.replace('SIM Only - ','SIM ');
+    c.onclick=function(){
+      if(_gapredtSelJourneys.has(j)){ _gapredtSelJourneys.delete(j); c.classList.remove('on'); }
+      else { _gapredtSelJourneys.add(j); c.classList.add('on'); document.getElementById('gapredt-chip-all').classList.remove('on'); }
+      if(_gapredtSelJourneys.size===0) document.getElementById('gapredt-chip-all').classList.add('on');
+      renderGAPREDT();
+    };
+    chipWrap.appendChild(c);
+  });
+  renderGAPREDT();
+}
+function gapredtDailyUnits(month){
+  if(!DATA||!DATA._rows) return {};
+  const filterJ=_gapredtSelJourneys.size>0?_gapredtSelJourneys:null;
+  const flags=computeGAPostRowFlags();
+  const daily={};
+  DATA._rows.forEach((r,i)=>{
+    if(!r.month.startsWith(month)||!r.day||!r.day.startsWith(month)) return;
+    if(!GA_PRE_J.includes(r.journey)) return;
+    if(filterJ&&!filterJ.has(r.journey)) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    daily[r.day]=(daily[r.day]||0)+f.qty;
+  });
+  return daily;
+}
+function renderGAPREDT(){
+  if(!DATA||!MONTHS.length) return;
+  const month=document.getElementById('gapredt-month-sel')?.value;
+  if(!month) return;
+  const [yr,mo]=month.split('-').map(Number);
+  document.getElementById('gapredt-chart-title').textContent=TH_MONTHS[mo-1]+' '+yr;
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const asOfDay=asOfDayForMonth(month);
+  const effectiveDays=asOfDay>0?Math.min(daysInMonth,asOfDay):daysInMonth;
+  const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
+  const daily=gapredtDailyUnits(month);
+  const vals=allDays.map(d=>daily[d]||0);
+  const maxVal=Math.max(...vals,1);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeDays=vals.filter(v=>v>0).length;
+  const peak=Math.max(...vals);
+  const peakDay=allDays[vals.indexOf(peak)];
+  const prevIdx=MONTHS.indexOf(month)-1;
+  let prevTotal=0;
+  if(prevIdx>=0){const pd=gapredtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
+  const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
+  document.getElementById('gapredt-kpis').innerHTML=[
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">as of วันที่ ${effectiveDays}</div>`},
+    {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
+    {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${effectiveDays} วัน (as of)</div>`},
+  ].map(k=>`<div class="kpi-m"><div class="kpi-m-lbl">${k.lbl}</div><div class="kpi-m-val">${k.val}</div>${k.sub}</div>`).join('');
+  const lastActive=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0).pop();
+  let insightHtml='';
+  if(total===0) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 ไม่พบข้อมูลในเดือนนี้เลย</div>`;
+  else if(lastActive!==undefined&&(lastActive+1)<effectiveDays-3) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 <strong>หยุดมีข้อมูลหลังวันที่ ${allDays[lastActive].slice(8)}</strong> — ไม่พบ units ถึงวันที่ ${effectiveDays} (as of)</div>`;
+  else insightHtml=`<div style="padding:10px 14px;background:rgba(34,197,94,.08);border-left:3px solid #0A6E45;border-radius:0 6px 6px 0;font-size:12px;">✅ <strong>Active ${activeDays} จาก ${effectiveDays} วัน (as of)</strong> — วันอื่นที่เหลือในเดือนนี้ยังไม่ถึง หรือ order ยังไม่ completed</div>`;
+  document.getElementById('gapredt-insight').innerHTML=insightHtml;
+  document.getElementById('gapredt-stats').innerHTML=[
+    ['รวม',total.toLocaleString(),'var(--dark)'],
+    ['Active',activeDays+' วัน','var(--dark)'],
+    ['เฉลี่ย/วัน',(activeDays>0?total/activeDays:0).toFixed(1),'#00C8FF'],
+    ['Peak',peak+(peakDay?' (วันที่ '+peakDay.slice(8)+')':''),'#0A6E45'],
+  ].map(([l,v,c])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 14px;min-width:90px;"><div style="font-size:10px;color:var(--mid)">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  document.getElementById('gapredt-bars').innerHTML=allDays.map((d,i)=>{
+    const v=vals[i];
+    const dayNum=i+1;
+    const isFuture=dayNum>effectiveDays;
+    const h=maxVal>0?Math.max(Math.round(v/maxVal*100),v>0?4:0):0;
+    const isWeekend=[0,6].includes(new Date(d).getDay());
+    const bg=v===0?(isFuture?'repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03) 3px,transparent 3px,transparent 6px)':'rgba(0,0,0,0.07)'):'#00C8FF';
+    const title=isFuture?`${d}: ยังไม่ถึงวันนี้ (as of ${effectiveDays})`:`${d}: ${v} units`;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;" title="${title}"><div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div><div style="height:${h}px;width:100%;background:${bg};border-radius:2px 2px 0 0;opacity:${isWeekend&&!isFuture?.55:1}"></div></div>`;
+  }).join('');
+  document.getElementById('gapredt-xlabels').innerHTML=allDays.map((d,i)=>{
+    const day=d.slice(8);
+    const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
+    return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
+  }).join('');
+  const tblRows=allDays.map((d,i)=>{
+    const v=vals[i]; const day=d.slice(8);
+    const dow=['อา','จ','อ','พ','พฤ','ศ','ส'][new Date(d).getDay()];
+    const isWkd=[0,6].includes(new Date(d).getDay());
+    const p=total>0?(v/total*100).toFixed(1):0;
+    return`<tr style="${isWkd?'color:var(--mid)':''}"><td style="padding:4px 8px">${day} (${dow})</td><td style="text-align:right;padding:4px 8px;font-weight:${v===peak&&peak>0?'700':'400'}">${v.toLocaleString()}</td><td style="text-align:right;padding:4px 8px;color:${v===peak&&peak>0?'#0A6E45':'var(--mid)'}">${p}%</td></tr>`;
+  }).join('');
+  document.getElementById('gapredt-tbl-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">วัน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Units</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">% ของเดือน</th></tr></thead><tbody>${tblRows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${total.toLocaleString()}</td><td style="text-align:right;padding:5px 8px">100%</td></tr></tfoot></table>`;
+}
+
+function initGAPDTFilters(){
+  if(!DATA||!MONTHS.length) return;
+  const sel=document.getElementById('gapdt-month-sel');
+  if(!sel) return;
+  sel.innerHTML='';
+  [...MONTHS].reverse().forEach((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    const lbl=TH_MONTHS[mo-1]+' '+yr;
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=lbl+(i===0?' (ล่าสุด)':'');
+    if(i===0) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  // Journey chips — เฉพาะ GA Postpaid journeys ที่มีข้อมูลจริง
+  const jSet=new Set();
+  (DATA._rows||[]).forEach(r=>{ if(GA_POST_J.includes(r.journey)) jSet.add(r.journey); });
+  const chipWrap=document.getElementById('gapdt-journey-chips');
+  if(!chipWrap) return;
+  chipWrap.innerHTML='';
+  const allChip=document.createElement('span');
+  allChip.className='sc on'; allChip.id='gapdt-chip-all'; allChip.textContent='All Journey';
+  allChip.onclick=function(){
+    _gapdtSelJourneys.clear();
+    chipWrap.querySelectorAll('.sc').forEach(c=>c.classList.remove('on'));
+    allChip.classList.add('on');
+    renderGAPDT();
+  };
+  chipWrap.appendChild(allChip);
+  const jOrder=['SIM Only - Postpaid','SIM Only - MNP Postpaid','SIM Only - Pre to Post','Device Bundle New','Device Bundle P2P','Device Bundle MNP 1 Step'];
+  jOrder.filter(j=>jSet.has(j)).forEach(j=>{
+    const c=document.createElement('span');
+    c.className='sc'; c.dataset.j=j;
+    const lbl=j.replace('Device Bundle ','DB ').replace('SIM Only - ','SIM ');
+    c.textContent=lbl;
+    c.onclick=function(){
+      if(_gapdtSelJourneys.has(j)){ _gapdtSelJourneys.delete(j); c.classList.remove('on'); }
+      else { _gapdtSelJourneys.add(j); c.classList.add('on'); document.getElementById('gapdt-chip-all').classList.remove('on'); }
+      if(_gapdtSelJourneys.size===0) document.getElementById('gapdt-chip-all').classList.add('on');
+      renderGAPDT();
+    };
+    chipWrap.appendChild(c);
+  });
+  renderGAPDT();
+}
+
+function gapdtDailyUnits(month){
+  if(!DATA||!DATA._rows) return {};
+  const filterJ=_gapdtSelJourneys.size>0?_gapdtSelJourneys:null;
+  const flags=computeGAPostRowFlags();
+  const daily={};
+  DATA._rows.forEach((r,i)=>{
+    if(!r.month.startsWith(month)||!r.day||!r.day.startsWith(month)) return;
+    if(!GA_POST_J.includes(r.journey)) return; // Postpaid only, ไม่รวม Prepaid
+    if(filterJ&&!filterJ.has(r.journey)) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    daily[r.day]=(daily[r.day]||0)+f.qty;
+  });
+  return daily;
+}
+
+function asOfDayForMonth(month){
+  // วันสุดท้ายที่มีข้อมูล TOS-New จริง (ไม่สนสถานะ/journey) ในเดือนนั้น — ใช้ logic เดียวกับ tag "as of" บนสุดของ dashboard
+  const rows=(DATA._rows||[]).filter(r=>r._sheet==='TOS-New'&&r.day&&r.day.startsWith(month));
+  if(!rows.length) return 0;
+  return Math.max(...rows.map(r=>parseInt(r.day.slice(8),10)));
+}
+function renderGAPDT(){
+  if(!DATA||!MONTHS.length) return;
+  const month=document.getElementById('gapdt-month-sel')?.value;
+  if(!month) return;
+  const [yr,mo]=month.split('-').map(Number);
+  document.getElementById('gapdt-chart-title').textContent=TH_MONTHS[mo-1]+' '+yr;
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const asOfDay=asOfDayForMonth(month);
+  const effectiveDays=asOfDay>0?Math.min(daysInMonth,asOfDay):daysInMonth; // จำนวนวันที่ "as of" จริง ใช้แทน daysInMonth เป็น denominator
+  const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
+  const daily=gapdtDailyUnits(month);
+  const vals=allDays.map(d=>daily[d]||0);
+  const maxVal=Math.max(...vals,1);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeDays=vals.filter(v=>v>0).length;
+  const peak=Math.max(...vals);
+  const peakDay=allDays[vals.indexOf(peak)];
+  // KPI
+  const prevIdx=MONTHS.indexOf(month)-1;
+  let prevTotal=0;
+  if(prevIdx>=0){const pd=gapdtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
+  const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
+  document.getElementById('gapdt-kpis').innerHTML=[
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">as of วันที่ ${effectiveDays}</div>`},
+    {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
+    {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${effectiveDays} วัน (as of)</div>`},
+  ].map(k=>`<div class="kpi-m"><div class="kpi-m-lbl">${k.lbl}</div><div class="kpi-m-val">${k.val}</div>${k.sub}</div>`).join('');
+  // Insight — เทียบ lastActive กับ effectiveDays (as of) แทน daysInMonth เต็มเดือน เพื่อไม่ให้เตือนผิดพลาดว่า "หยุดมีข้อมูล" ทั้งที่จริงแค่ยังไม่ถึงวันนั้น (order ที่ยังไม่ completed)
+  const lastActive=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0).pop();
+  let insightHtml='';
+  if(total===0) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 ไม่พบข้อมูลในเดือนนี้เลย</div>`;
+  else if(lastActive!==undefined&&(lastActive+1)<effectiveDays-3) insightHtml=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 <strong>หยุดมีข้อมูลหลังวันที่ ${allDays[lastActive].slice(8)}</strong> — ไม่พบ units ถึงวันที่ ${effectiveDays} (as of)</div>`;
+  else insightHtml=`<div style="padding:10px 14px;background:rgba(34,197,94,.08);border-left:3px solid #0A6E45;border-radius:0 6px 6px 0;font-size:12px;">✅ <strong>Active ${activeDays} จาก ${effectiveDays} วัน (as of)</strong> — วันอื่นที่เหลือในเดือนนี้ยังไม่ถึง หรือ order ยังไม่ completed</div>`;
+  document.getElementById('gapdt-insight').innerHTML=insightHtml;
+  // Stats
+  document.getElementById('gapdt-stats').innerHTML=[
+    ['รวม',total.toLocaleString(),'var(--dark)'],
+    ['Active',activeDays+' วัน','var(--dark)'],
+    ['เฉลี่ย/วัน',(activeDays>0?total/activeDays:0).toFixed(1),'#3b82f6'],
+    ['Peak',peak+(peakDay?' (วันที่ '+peakDay.slice(8)+')':''),'#0A6E45'],
+  ].map(([l,v,c])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 14px;min-width:90px;"><div style="font-size:10px;color:var(--mid)">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  // Bars — วันหลัง effectiveDays (ยังไม่ถึง as of) ใช้สไตล์ต่างจากวันที่ผ่านมาแล้วแต่ไม่มี units
+  document.getElementById('gapdt-bars').innerHTML=allDays.map((d,i)=>{
+    const v=vals[i];
+    const dayNum=i+1;
+    const isFuture=dayNum>effectiveDays;
+    const h=maxVal>0?Math.max(Math.round(v/maxVal*100),v>0?4:0):0;
+    const isWeekend=[0,6].includes(new Date(d).getDay());
+    const bg=v===0?(isFuture?'repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03) 3px,transparent 3px,transparent 6px)':'rgba(0,0,0,0.07)'):'#3b82f6';
+    const title=isFuture?`${d}: ยังไม่ถึงวันนี้ (as of ${effectiveDays})`:`${d}: ${v} units`;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;" title="${title}"><div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div><div style="height:${h||(isFuture?0:0)}px;width:100%;background:${bg};border-radius:2px 2px 0 0;opacity:${isWeekend&&!isFuture?.55:1}"></div></div>`;
+  }).join('');
+  // X Labels
+  document.getElementById('gapdt-xlabels').innerHTML=allDays.map((d,i)=>{
+    const day=d.slice(8);
+    const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
+    return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
+  }).join('');
+  // Table
+  const tblRows=allDays.map((d,i)=>{
+    const v=vals[i]; const day=d.slice(8);
+    const dow=['อา','จ','อ','พ','พฤ','ศ','ส'][new Date(d).getDay()];
+    const isWkd=[0,6].includes(new Date(d).getDay());
+    const pct=total>0?(v/total*100).toFixed(1):0;
+    return`<tr style="${isWkd?'color:var(--mid)':''}"><td style="padding:4px 8px">${day} (${dow})</td><td style="text-align:right;padding:4px 8px;font-weight:${v===peak&&peak>0?'700':'400'}">${v.toLocaleString()}</td><td style="text-align:right;padding:4px 8px;color:${v===peak&&peak>0?'#0A6E45':'var(--mid)'}">${pct}%</td></tr>`;
+  }).join('');
+  document.getElementById('gapdt-tbl-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">วัน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">Units</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">% ของเดือน</th></tr></thead><tbody>${tblRows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${total.toLocaleString()}</td><td style="text-align:right;padding:5px 8px">100%</td></tr></tfoot></table>`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -9124,25 +9882,10 @@ function renderModelScorecard(){
   const lbl=document.getElementById('model-topn-lbl');
   if(lbl) lbl.textContent=topN;
 
-  // Merge prod data by status
-  // DATA.prod[st] = { month+'||'+brand : { model: count } }
+  // Merge prod data by status + UTM Source filter (v4.10)
+  // devSoldModelAgg คืนค่า { model+'|||'+brand : { month: count } } อยู่แล้ว ตรงกับ prodMap เดิม
   const sts=getSts();
-  function mergeProd(){
-    const result={};
-    sts.forEach(st=>{
-      Object.entries(DATA.prod[st]||{}).forEach(([mkey,modelMap])=>{
-        const [month,brand]=mkey.split('||');
-        Object.entries(modelMap).forEach(([model,cnt])=>{
-          const key=model+'|||'+brand;
-          if(!result[key]) result[key]={};
-          result[key][month]=(result[key][month]||0)+cnt;
-        });
-      });
-    });
-    return result;
-  }
-
-  const prodMap=mergeProd();
+  const prodMap=devSoldModelAgg(_devUtmFilter,sts);
 
   // Sum across months → pick top N
   const modelTotals={};
