@@ -566,7 +566,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
         <!-- ── Campaign: Go Travel SIM / Tourist SIM / Mass ─────────── -->
         <div class="ct-card">
           <h4>Campaign — Go Travel SIM / Tourist SIM / Mass <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('gapre-campaign-tbl')">ตาราง ▾</button><span class="info-btn" id="gapre-camp-info-btn" onclick="toggleGaPreCampInfo()">ⓘ</span></span></h4>
-          <div class="info-box" id="gapre-camp-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> เฉพาะ status <b>completed เท่านั้น</b> แยกตาม Product Name (ทั้ง TOS-OLD column <code>product_name</code> และ TOS-New column <code>Product Name</code>):<br><br>· <b>Go Travel SIM</b> = ขึ้นต้นด้วย "GO Travel" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Tourist SIM</b> = ขึ้นต้นด้วย "THAILAND TOURIST" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Mass</b> = ที่เหลือทั้งหมด<br><br>นับหน่วยด้วยผลรวม <code>Quantity Cart</code> (TOS-OLD คิดเป็น 1 เสมอ)</div></div>
+          <div class="info-box" id="gapre-camp-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> เฉพาะ status <b>completed เท่านั้น</b> แยกตาม column <code>New Proposition Name</code> (<b>TOS-New เท่านั้น</b> — ยังไม่รวม TOS-OLD เพราะ column นี้มีแค่ TOS-New):<br><br>· <b>Go Travel SIM</b> = ขึ้นต้นด้วย "GO Travel" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Tourist SIM</b> = มีคำว่า "Tourist" อยู่ตรงไหนก็ได้ในข้อความ (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Mass</b> = ที่เหลือทั้งหมด รวมถึงค่าว่าง/None/'-'<br><br>นับหน่วยด้วยผลรวม <code>Quantity Cart</code></div></div>
           <div style="position:relative;height:220px"><canvas id="chart-gapre-campaign"></canvas></div>
           <div class="ct-tbl" id="gapre-campaign-tbl"></div>
         </div>
@@ -5677,7 +5677,9 @@ function processRows(allRows){
     // v4.10: UTM Source (TOS-New เท่านั้น) — สำหรับ filter ใน Device Sold tab
     const utmSourceRaw=sheet==='TOS-New'?String(get('TOS-New.UTM Source')||'').trim():'';
     const utmSource=(utmSourceRaw&&utmSourceRaw!=='-')?utmSourceRaw:'ไม่ระบุ';
-    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw,isLuckySim,isDiy,utmSource};
+    // v4.14: New Proposition Name (TOS-New เท่านั้น) — ใช้แยก Campaign Go Travel SIM / Tourist SIM / Mass ใน GA-Prepaid แทน product_name
+    const newPropositionName=sheet==='TOS-New'?String(get('TOS-New.New Proposition Name')||'').trim():'';
+    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw,isLuckySim,isDiy,utmSource,newPropositionName};
   }).filter(r=>r.month&&/^\d{4}-\d{2}$/.test(r.month));
 
   // Debug: check TOS-OLD device rows
@@ -7597,7 +7599,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.13_20260830';
+const DASH_VERSION   = 'v4.14_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7608,6 +7610,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.14_20260830', note:'Section "Campaign — Go Travel SIM / Tourist SIM / Mass" (GA-Prepaid): เปลี่ยน lookup field จาก product_name เป็น column ใหม่ <b>"New Proposition Name"</b> (TOS-New เท่านั้น) — data source อัปเดต column นี้เพิ่มมาแล้ว: เพิ่ม field newPropositionName ใน processRows (TOS-New เท่านั้น, TOS-OLD ว่างเสมอ) · เงื่อนไขใหม่: Go Travel SIM = ขึ้นต้นด้วย "GO Travel" (เหมือนเดิม), Tourist SIM = **มีคำว่า "Tourist" อยู่ตรงไหนก็ได้** (เปลี่ยนจากเดิมที่ต้องขึ้นต้นด้วย "THAILAND TOURIST" เพราะ column ใหม่มี pattern หลากหลายกว่า เช่น "eSIM Tourist...", "eSIM Thailand Tourist..."), Mass = ที่เหลือทั้งหมดรวมค่าว่าง/None/"-" · **นับเฉพาะ Sheet Name = TOS-New เท่านั้นก่อน** (TOS-OLD ไม่มี column นี้ จึงถูกตัดออกจาก section นี้ชั่วคราว) · อัปเดต tooltip ให้ตรงกับ logic ใหม่ · ทดสอบด้วยข้อมูลจำลองแล้วว่า TOS-OLD ถูกตัดออก, ทั้ง 2 รูปแบบ Tourist ("eSIM Tourist" และ "eSIM Thailand Tourist") จับได้ถูกต้อง, ค่าว่าง/"-" จัดเป็น Mass ถูกต้อง' },
   { v:'v4.13_20260830', note:'เพิ่ม Tab ใหม่ "GA – Prepaid" ต่อท้าย GA – Postpaid มี 5 sections: (1) Summary by month, (2) GA Prepaid แยก Journey (SIM Only - Prepaid, SIM Only - MNP Prepaid), (3) Daily Trend (พร้อม as-of logic เหมือน GA Postpaid), (4) Physical vs eSIM (มี Journey filter All/SIM Prepaid/MNP Prepaid), (5) Campaign — Go Travel SIM / Tourist SIM / Mass (แยกจาก product_name: ขึ้นต้น "GO Travel"→Go Travel SIM, ขึ้นต้น "THAILAND TOURIST"→Tourist SIM, ที่เหลือ→Mass ทั้ง TOS-OLD คอลัมน์ product_name และ TOS-New คอลัมน์ Product Name) · scope = 2 GA Prepaid journeys, status completed เท่านั้น (fix ไม่ผูก toggle) · **นับหน่วยด้วยผลรวม Quantity Cart แทนจำนวนแถว** (1 order ซื้อได้หลายซิม) — TOS-OLD ไม่มี column นี้จึงคิดเป็น 1 เสมอ · ไม่มี filter Delivery/UTM เพราะ Prepaid ส่งถึงบ้านเสมอและไม่มี UTM ที่มีความหมาย · สถาปัตยกรรม: รียูส computeGAPostRowFlags() เดิม (ครอบคลุม Prepaid อยู่แล้ว) พร้อม fix ช่องโหว่เดิมที่ qty จาก Quantity Cart ใช้เฉพาะ sim_only_prepaid ไม่ครอบคลุม sim_only_mnp_prepaid (ขยายให้ครอบคลุมทั้งคู่แล้ว) · ทดสอบด้วยข้อมูลจำลองครบทั้ง 2 sheets, 3 campaign categories, in-progress exclusion, และ Quantity Cart multiplier — ยืนยันตัวเลขถูกต้องทุกจุด' },
   { v:'v4.12_20260830', note:'Section "Campaign — เบอร์มงคล & 5G MyPlan": เพิ่ม filter Delivery — All, Delivery to Home, Pick Up at Shop โดยใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop (rowDeliveryKey: TOS-OLD ดู delivery_location, TOS-New ดู Delivery Shop Name) — **default select = Delivery to Home** (ไม่ใช่ All); อัปเดต tooltip ให้ระบุ default filter ที่ใช้ — ทดสอบด้วยข้อมูลจำลองแล้วว่า default(home) ตัดยอด shop ออกถูกต้อง และ All = Home + Shop ตรงกัน' },
   { v:'v4.11_20260830', note:'Fix ค่า UTM Source = "-" (dash) ให้จัดเป็น "ไม่ระบุ" เหมือนค่าว่าง (เดิมมีแค่ค่าว่าง/None ที่แปลงเป็น "ไม่ระบุ" แต่ "-" หลุดไปเป็น bucket แยกต่างหาก) — ตรวจข้อมูลจริงพบว่า UTM Source ของคำสั่งซื้อ Device Sold ส่วนใหญ่เป็นค่าว่างหรือ "-" (ค่า UTM จริงเช่น trueapp/facebook/google-search เกือบทั้งหมดอยู่ที่คำสั่งซื้อ SIM Only ฝั่ง GA Postpaid แทน ซึ่งเป็นลักษณะข้อมูลจริง ไม่ใช่ bug) — ยืนยันกับ user แล้วว่า filter ที่ Device Sold ถูกต้องแล้ว ไม่ต้องเพิ่ม filter ที่ GA-Postpaid เพิ่มในตอนนี้' },
@@ -8203,20 +8206,23 @@ function computeGAPreSimTypeAgg(journeyFilter){
 }
 
 // Campaign: Go Travel SIM / Tourist SIM / Mass — จาก product_name (ทั้ง TOS-OLD และ TOS-New)
-function classifyPrepaidCampaign(productName){
-  const pn=String(productName||'').trim().toUpperCase();
-  if(pn.startsWith('GO TRAVEL')) return 'Go Travel SIM';
-  if(pn.startsWith('THAILAND TOURIST')) return 'Tourist SIM';
-  return 'Mass';
+function classifyPrepaidCampaign(newPropositionName){
+  // v4.14: เปลี่ยนมาดูจาก column "New Proposition Name" (TOS-New เท่านั้น) แทน product_name
+  const pn=String(newPropositionName||'').trim();
+  const pnUpper=pn.toUpperCase();
+  if(pnUpper.startsWith('GO TRAVEL')) return 'Go Travel SIM';
+  if(pnUpper.includes('TOURIST')) return 'Tourist SIM'; // เจาะคำว่า Tourist อยู่ตรงไหนก็ได้
+  return 'Mass'; // รวมถึงค่าว่าง/None/'-'
 }
-function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM':qty,'Mass':qty}}
+function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM':qty,'Mass':qty}} — v4.14: TOS-New เท่านั้น
   const flags=computeGAPostRowFlags();
   const res={};
   (DATA._rows||[]).forEach((r,i)=>{
     if(!GA_PRE_J.includes(r.journey)) return;
+    if(r._sheet!=='TOS-New') return; // v4.14: นับเฉพาะ TOS-New เท่านั้นก่อน (New Proposition Name มีแค่ TOS-New)
     const f=flags[i];
     if(!f.isGA) return;
-    const cat=classifyPrepaidCampaign(r.product_name);
+    const cat=classifyPrepaidCampaign(r.newPropositionName);
     if(!res[r.month]) res[r.month]={'Go Travel SIM':0,'Tourist SIM':0,'Mass':0};
     res[r.month][cat]+=f.qty;
   });
