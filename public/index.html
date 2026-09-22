@@ -6936,11 +6936,13 @@ function renderBrand(){
   const threshold=parseFloat(document.getElementById('brand-threshold')?.value||50);
 
   // ดึงข้อมูลตาม brandStatus + UTM Source filter (v4.10)
+  const brSts=brandStatus==='cancel'?['cancel']:['completed','inprogress'];
   function mergeBrandByStatus(){
-    const sts=brandStatus==='cancel'?['cancel']:['completed','inprogress'];
-    return devSoldBrandAgg(_devUtmFilter,sts);
+    return devSoldBrandAgg(_devUtmFilter,brSts);
   }
   const br=mergeBrandByStatus();
+  const momInfo=getMoMCutoffInfo();
+  const brAdj=momInfo.isPartial?devSoldBrandAgg(_devUtmFilter,brSts,{month:momInfo.prevMonth,day:momInfo.cutoffDay}):null;
 
   const allB={};
   MONTHS.forEach(m=>Object.entries(br[m]||{}).forEach(([b,cnt])=>{allB[b]=(allB[b]||0)+cnt;}));
@@ -6964,11 +6966,13 @@ function renderBrand(){
         const intensity=Math.round(v/maxVal*80);
         const bg=`rgba(59,130,246,${(intensity/100).toFixed(2)})`;
         const textCol=intensity>50?'white':'var(--text)';
-        // %MoM
+        // %MoM — ใช้ day-matched prev ถ้าเป็นเดือนล่าสุดที่ยังไม่ครบเดือน (v4.15)
+        const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&brAdj;
+        const prevForPct=useAdj?gv(brAdj,momInfo.prevMonth,b):vals[i-1];
         let chg='';
         let isAnomaly=false;
-        if(i>0&&vals[i-1]>0){
-          const pct=((v-vals[i-1])/vals[i-1]*100).toFixed(1);
+        if(i>0&&prevForPct>0){
+          const pct=((v-prevForPct)/prevForPct*100).toFixed(1);
           isAnomaly=Math.abs(pct)>=threshold;
           // Confirm: เขียว=ขึ้น, แดง=ลง | Cancel: เขียว=ลง, แดง=ขึ้น
           let col;
@@ -6981,8 +6985,8 @@ function renderBrand(){
         // Confirm: เขียว=เพิ่ม, แดง=ลด
         // Cancel:  เขียว=ลด, แดง=เพิ่ม (cancel ลดดี, cancel เพิ่มน่าเป็นห่วง)
         let anomalyBorder='';
-        if(i>0&&vals[i-1]>0){
-          const rawPct=(v-vals[i-1])/vals[i-1]*100;
+        if(i>0&&prevForPct>0){
+          const rawPct=(v-prevForPct)/prevForPct*100;
           const isUp=rawPct>=threshold;
           const isDown=rawPct<=-threshold;
           if(brandStatus==='cancel'){
@@ -7009,9 +7013,12 @@ function renderBrand(){
     // Total row
     const totalVals=MONTHS.map(m=>topBrands.reduce((s,b)=>s+gv(br,m,b),0));
     const grandTotal=totalVals.reduce((a,b)=>a+b,0);
+    const totalValAdjPrev=momInfo.isPartial&&brAdj?topBrands.reduce((s,b)=>s+gv(brAdj,momInfo.prevMonth,b),0):null;
     const totalCells=totalVals.map((v,i)=>{
       let chg='';
-      if(i>0&&totalVals[i-1]>0){const pct=((v-totalVals[i-1])/totalVals[i-1]*100).toFixed(1);const col=pct>0?'var(--green)':'var(--red)';chg=`<br><span style="font-size:10px;color:${col};">${pct>0?'▲':'▼'}${Math.abs(pct)}%</span>`;}
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&totalValAdjPrev!=null;
+      const prevForPct=useAdj?totalValAdjPrev:totalVals[i-1];
+      if(i>0&&prevForPct>0){const pct=((v-prevForPct)/prevForPct*100).toFixed(1);const col=pct>0?'var(--green)':'var(--red)';chg=`<br><span style="font-size:10px;color:${col};">${pct>0?'▲':'▼'}${Math.abs(pct)}%</span>`;}
       return `<td style="text-align:right;font-family:'IBM Plex Mono',monospace;vertical-align:top;padding:8px 10px;">${v.toLocaleString()}${chg}</td>`;
     }).join('');
 
@@ -7297,7 +7304,7 @@ function rowDeliveryKey(r){
   }
   return '';
 }
-function computeSimTypeDeliveryAgg(delFilter){
+function computeSimTypeDeliveryAgg(delFilter,cutoff){
   const jFilter=_simTypeJourneyFilter.size>0?_simTypeJourneyFilter:null; // null = All Journey (ครบ 6)
   const res={}; // {month:{Physical:n, eSIM:n}}
   (DATA._rows||[]).forEach(r=>{
@@ -7305,6 +7312,7 @@ function computeSimTypeDeliveryAgg(delFilter){
     if(jFilter&&!jFilter.has(r.journey)) return;
     if(r.status!=='completed') return; // fix เป็น completed เท่านั้น (v4.07) — ไม่ผูกกับ toggle สถานะ Confirm/Cancel ใน Settings อีกต่อไป เพราะ Confirm รวม in-progress ด้วย
     if(delFilter&&delFilter!=='all'&&rowDeliveryKey(r)!==delFilter) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     if(!res[r.month]) res[r.month]={};
     res[r.month][r.sim_type]=(res[r.month][r.sim_type]||0)+1;
   });
@@ -7334,7 +7342,7 @@ function toggleSimTypeInfo(){const b=document.getElementById('simtype-info-box')
 // ── Campaign: เบอร์มงคล (Lucky SIM order) / 5G MyPlan (DIY order) ──
 // scope: 6 GA Postpaid journeys, status completed เท่านั้น, TOS-New เท่านั้น (TOS-OLD ไม่มี column นี้)
 let _campaignDelFilter='home'; // 'all' | 'home' | 'shop' — default = home ตามที่กำหนด
-function computeCampaignAgg(delFilter){
+function computeCampaignAgg(delFilter,cutoff){
   const df=delFilter||_campaignDelFilter;
   const res={}; // {month:{lucky:n, diy:n}}
   (DATA._rows||[]).forEach(r=>{
@@ -7343,6 +7351,7 @@ function computeCampaignAgg(delFilter){
     if(r._sheet!=='TOS-New') return;
     if(!r.isLuckySim&&!r.isDiy) return;
     if(df&&df!=='all'&&rowDeliveryKey(r)!==df) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     if(!res[r.month]) res[r.month]={lucky:0,diy:0};
     if(r.isLuckySim) res[r.month].lucky++;
     if(r.isDiy) res[r.month].diy++;
@@ -7362,11 +7371,22 @@ function renderCampaign(){
   const luckyV=MONTHS.map(m=>(camp[m]||{}).lucky||0);
   const diyV=MONTHS.map(m=>(camp[m]||{}).diy||0);
   mkBar2('chart-campaign',[{label:'เบอร์มงคล',vals:luckyV,color:'#e02424'},{label:'5G MyPlan',vals:diyV,color:'#1a56db'}]);
-  const momOf=(vals,i)=>{if(i===0||vals[i-1]===0) return null; return ((vals[i]-vals[i-1])/vals[i-1]*100);};
-  const momCell=(vals,i)=>{const p=momOf(vals,i); if(p===null) return '<span style="color:var(--mid)">–</span>'; const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—'); return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;};
+  const momInfo=getMoMCutoffInfo();
+  let campAdjPrev=null;
+  if(momInfo.isPartial) campAdjPrev=computeCampaignAgg(_campaignDelFilter,{month:momInfo.prevMonth,day:momInfo.cutoffDay});
+  const momCell=(vals,i,adjPrevVal)=>{
+    let prev=vals[i-1];
+    if(momInfo.isPartial&&i===MONTHS.length-1&&adjPrevVal!=null) prev=adjPrevVal;
+    if(i===0||!prev) return '<span style="color:var(--mid)">–</span>';
+    const p=((vals[i]-prev)/prev*100);
+    const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—');
+    return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;
+  };
   const rows=MONTHS.map((m,i)=>{
     const [yr,mo]=m.split('-').map(Number);
-    return `<tr><td style="padding:5px 8px">${TH_MONTHS[mo-1]} ${yr}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${luckyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(luckyV,i)}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${diyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(diyV,i)}</td></tr>`;
+    const luckyAdjPrev=campAdjPrev?(campAdjPrev[momInfo.prevMonth]||{}).lucky:null;
+    const diyAdjPrev=campAdjPrev?(campAdjPrev[momInfo.prevMonth]||{}).diy:null;
+    return `<tr><td style="padding:5px 8px">${TH_MONTHS[mo-1]} ${yr}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${luckyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(luckyV,i,luckyAdjPrev)}</td><td style="text-align:right;padding:5px 8px;font-weight:600">${diyV[i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(diyV,i,diyAdjPrev)}</td></tr>`;
   }).join('');
   const totalLucky=luckyV.reduce((a,b)=>a+b,0), totalDiy=diyV.reduce((a,b)=>a+b,0);
   document.getElementById('campaign-tbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เดือน</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">เบอร์มงคล</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">MoM</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">5G MyPlan</th><th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">MoM</th></tr></thead><tbody>${rows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td><td style="text-align:right;padding:5px 8px">${totalLucky.toLocaleString()}</td><td></td><td style="text-align:right;padding:5px 8px">${totalDiy.toLocaleString()}</td><td></td></tr></tfoot></table>`;
@@ -7400,7 +7420,7 @@ function gv2(obj,m,k){return(obj[m]||{})[k]||0;}
 function mAgg2(aggObj){const res={};getSts().forEach(st=>{Object.entries(aggObj[st]||{}).forEach(([m,kv])=>{if(!res[m])res[m]={};Object.entries(kv).forEach(([k,v])=>{res[m][k]=(res[m][k]||0)+v;});});});return res;}
 function mFlat2(aggObj){const res={};getSts().forEach(st=>{Object.entries(aggObj[st]||{}).forEach(([k,v])=>{res[k]=(res[k]||0)+v;});});return res;}
 function topK(obj,k){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,k);}
-function mkKpi2(vals){return MONTHS.map((m,i)=>{const v=vals[i]||0,prev=vals[i-1];return`<div class="kpi-m"><div class="kpi-m-lbl">${ML[i]}</div><div class="kpi-m-val">${fmt(v)}</div><div class="kpi-m-d">${i>0&&prev?pct(v,prev):''}</div></div>`;}).join('');}
+function mkKpi2(vals,lastMoMAdjPrev){return MONTHS.map((m,i)=>{const v=vals[i]||0,prev=vals[i-1];let pctHtml='';if(i>0&&prev){const momInfo=getMoMCutoffInfo();pctHtml=(momInfo.isPartial&&i===MONTHS.length-1&&lastMoMAdjPrev)?pct(v,lastMoMAdjPrev):pct(v,prev);}return`<div class="kpi-m"><div class="kpi-m-lbl">${ML[i]}</div><div class="kpi-m-val">${fmt(v)}</div><div class="kpi-m-d">${pctHtml}</div></div>`;}).join('');}
 function cOpts2(extra={}){return Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#4A4A52',font:{size:11,family:"'Inter',system-ui"},boxWidth:10,padding:12}}},scales:{x:{ticks:{color:'#7F7F7F',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},y:{ticks:{color:'#7F7F7F',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}}}},extra);}
 function mkLine2(id,datasets){dc(id);const el=document.getElementById(id);if(!el)return;CI[id]=new Chart(el,{type:'line',data:{labels:ML,datasets:datasets.map(d=>({label:d.label,data:d.vals,borderColor:d.color,backgroundColor:d.color+'18',fill:false,tension:0.3,pointRadius:5,pointBackgroundColor:d.color,borderWidth:2,borderDash:d.dash||[]}))},options:cOpts2()});}
 function mkBar2(id,datasets,stacked){
@@ -7501,14 +7521,50 @@ function renderDevSold2(){
   const catColors={'Smartphone':'#1a56db','Tablet':'#0e9f6e','Smartwatch':'#ff5a1f','Accessories':'#9333ea'};
   const catDash={'Smartphone':[],'Tablet':[5,3],'Smartwatch':[3,3],'Accessories':[8,3]};
   const totals=MONTHS.map(m=>cats.reduce((s,cat)=>s+gv2(dc2,m,cat),0));
-  document.getElementById('dev-kpis').innerHTML=mkKpi2(totals);
+  const momInfo=getMoMCutoffInfo();
+  let kpiAdjPrev=null, catAdjPrevByCat=null;
+  if(momInfo.isPartial){
+    const dc2Adj=devSoldCatAgg(_devUtmFilter,null,{month:momInfo.prevMonth,day:momInfo.cutoffDay});
+    kpiAdjPrev=cats.reduce((s,cat)=>s+gv2(dc2Adj,momInfo.prevMonth,cat),0);
+    catAdjPrevByCat={}; cats.forEach(cat=>{catAdjPrevByCat[cat]=gv2(dc2Adj,momInfo.prevMonth,cat);});
+  }
+  document.getElementById('dev-kpis').innerHTML=mkKpi2(totals,kpiAdjPrev);
   mkLine2('chart-dev-cat',cats.map(cat=>({label:cat,vals:MONTHS.map(m=>gv2(dc2,m,cat)),color:catColors[cat],dash:catDash[cat]})));
-  const catRows=cats.map(cat=>{const vals=MONTHS.map(m=>gv2(dc2,m,cat));const total=vals.reduce((a,b)=>a+b,0);return[cat,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(total)];}).sort((a,b)=>parseInt(String(a[a.length-1]).replace(/,/g,''))<parseInt(String(b[b.length-1]).replace(/,/g,''))?1:-1);
-  document.getElementById('dev-cat-tbl').innerHTML=mkTbl2(['Category',...ML,'รวม'],catRows,['รวม',...totals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,totals[i-1])}`:fmt(v)),fmt(totals.reduce((a,b)=>a+b,0))]);
+  const catRows=cats.map(cat=>{
+    const vals=MONTHS.map(m=>gv2(dc2,m,cat));const total=vals.reduce((a,b)=>a+b,0);
+    const cells=vals.map((v,i)=>{
+      if(i===0) return fmt(v);
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&catAdjPrevByCat;
+      const prevForPct=useAdj?catAdjPrevByCat[cat]:vals[i-1];
+      return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+    });
+    return[cat,...cells,fmt(total)];
+  }).sort((a,b)=>parseInt(String(a[a.length-1]).replace(/,/g,''))<parseInt(String(b[b.length-1]).replace(/,/g,''))?1:-1);
+  const totalCells=totals.map((v,i)=>{
+    if(i===0) return fmt(v);
+    const useAdj=momInfo.isPartial&&i===MONTHS.length-1;
+    const prevForPct=useAdj?kpiAdjPrev:totals[i-1];
+    return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+  });
+  document.getElementById('dev-cat-tbl').innerHTML=mkTbl2(['Category',...ML,'รวม'],catRows,['รวม',...totalCells,fmt(totals.reduce((a,b)=>a+b,0))]);
   const joData=CFG.devJourneyFiltered?devSoldJourneyAgg(_devUtmFilter):devSoldJourneyOpAgg(_devUtmFilter);
   const jrnEntries=Object.entries(joData).sort((a,b)=>b[1].reduce((s,v)=>s+v,0)-a[1].reduce((s,v)=>s+v,0));
   mkBar2('chart-dev-jrn',jrnEntries.map(([j,vals])=>({label:j,vals,color:J_COLORS[j]||'#aaa'})),true,false);
-  const jrnRows=jrnEntries.map(([j,vals])=>{const tot=vals.reduce((a,b)=>a+b,0);return[j,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(tot)];});
+  let joDataAdj=null;
+  if(momInfo.isPartial){
+    joDataAdj=CFG.devJourneyFiltered?devSoldJourneyAgg(_devUtmFilter,null,{month:momInfo.prevMonth,day:momInfo.cutoffDay}):devSoldJourneyOpAgg(_devUtmFilter,null,{month:momInfo.prevMonth,day:momInfo.cutoffDay});
+  }
+  const jrnRows=jrnEntries.map(([j,vals])=>{
+    const tot=vals.reduce((a,b)=>a+b,0);
+    const cells=vals.map((v,i)=>{
+      if(i===0) return fmt(v);
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&joDataAdj;
+      const prevMIdx=MONTHS.indexOf(momInfo.prevMonth);
+      const prevForPct=useAdj?((joDataAdj[j]||[])[prevMIdx]||0):vals[i-1];
+      return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+    });
+    return[j,...cells,fmt(tot)];
+  });
   document.getElementById('dev-jrn-tbl').innerHTML=mkTbl2(['Journey',...ML,'รวม'],jrnRows,null);
   renderBrand2();
 }
@@ -7545,26 +7601,81 @@ function showBrandModel2(brand){
   }).join('');
   tbl.innerHTML=`<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #E8E8E8"><th style="text-align:left;padding:6px 8px;font-size:10px;color:#7F7F7F">MODEL</th>${ML.map(m=>`<th style="text-align:right;padding:6px 8px;font-size:10px;color:#7F7F7F">${m}</th>`).join('')}<th style="text-align:right;padding:6px 8px;font-size:10px;color:#7F7F7F">รวม</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
+function computeGAPostJourneyDayCapped(month,dayCutoff){ // {journey:qty} สำหรับ 1 เดือน ตัดวันไม่เกิน dayCutoff — ใช้คำนวณ MoM แบบ day-matched เท่านั้น
+  const flags=computeGAPostRowFlags();
+  const res={};
+  (DATA._rows||[]).forEach((r,i)=>{
+    if(r.month!==month) return;
+    if(!GA_POST_J.includes(r.journey)) return;
+    if(dayCutoff!=null&&parseInt((r.day||'').slice(8),10)>dayCutoff) return;
+    const f=flags[i];
+    if(!f.isGA) return;
+    res[r.journey]=(res[r.journey]||0)+f.qty;
+  });
+  return res;
+}
+function computeSimDelDayCapped(month,dayCutoff){ // {home:n, shop:n} สำหรับ 1 เดือน ตัดวันไม่เกิน dayCutoff
+  let home=0,shop=0;
+  (DATA._rows||[]).forEach(r=>{
+    if(r.month!==month) return;
+    if(!(r.journey==='SIM Only - Postpaid'||r.journey==='SIM Only - MNP Postpaid')) return;
+    if(r.status!=='completed') return;
+    if(dayCutoff!=null&&parseInt((r.day||'').slice(8),10)>dayCutoff) return;
+    const dk=rowDeliveryKey(r);
+    if(dk==='home') home++; else if(dk==='shop') shop++;
+  });
+  return {home,shop};
+}
 function renderGAPost2(){
   const sts=getSts();
+  const momInfo=getMoMCutoffInfo();
   const gapV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{const gj=DATA.gaJourney[st]||{};Object.entries(gj).forEach(([mm,kv])=>{if(mm===m)GA_POST_J.forEach(j=>{n+=(kv[j]||0);});});});return n;});
-  document.getElementById('gap-kpis').innerHTML=mkKpi2(gapV);
+  let gapKpiAdjPrev=null, gapJrnAdjPrev=null, simDelAdjPrev=null;
+  if(momInfo.isPartial){
+    gapJrnAdjPrev=computeGAPostJourneyDayCapped(momInfo.prevMonth,momInfo.cutoffDay);
+    gapKpiAdjPrev=GA_POST_J.reduce((s,j)=>s+(gapJrnAdjPrev[j]||0),0);
+    simDelAdjPrev=computeSimDelDayCapped(momInfo.prevMonth,momInfo.cutoffDay);
+  }
+  document.getElementById('gap-kpis').innerHTML=mkKpi2(gapV,gapKpiAdjPrev);
   const gjm=mAgg2(DATA.gaJourney);
   const jrnColors={'SIM Only - Postpaid':'#FF0000','SIM Only - Pre to Post':'#cc0000','SIM Only - MNP Postpaid':'#ff6666','Device Bundle New':'#000','Device Bundle P2P':'#4A4A52','Device Bundle MNP 1 Step':'#7F7F7F'};
   mkBar100('chart-gap-jrn',GA_POST_J.map(j=>({label:j,vals:MONTHS.map(m=>gv2(gjm,m,j)),color:jrnColors[j]||'#aaa'})));
-  const jrnRows=GA_POST_J.map(j=>{const vals=MONTHS.map(m=>gv2(gjm,m,j));const total=vals.reduce((a,b)=>a+b,0);return[j,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(total)];}).sort((a,b)=>parseInt(String(a[a.length-1]).replace(/,/g,''))<parseInt(String(b[b.length-1]).replace(/,/g,''))?1:-1);
+  const jrnRows=GA_POST_J.map(j=>{
+    const vals=MONTHS.map(m=>gv2(gjm,m,j));const total=vals.reduce((a,b)=>a+b,0);
+    const cells=vals.map((v,i)=>{
+      if(i===0) return fmt(v);
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&gapJrnAdjPrev;
+      const prevForPct=useAdj?(gapJrnAdjPrev[j]||0):vals[i-1];
+      return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+    });
+    return[j,...cells,fmt(total)];
+  }).sort((a,b)=>parseInt(String(a[a.length-1]).replace(/,/g,''))<parseInt(String(b[b.length-1]).replace(/,/g,''))?1:-1);
   const jrnTotals=MONTHS.map((_,mi)=>jrnRows.reduce((s,r)=>s+parseInt(String(r[mi+1]).replace(/<[^>]*>/g,'').replace(/,/g,'')||0),0));
   const jrnGrand=jrnTotals.reduce((a,b)=>a+b,0);
-  const jrnTotRow=['รวมทุก Journey',...jrnTotals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,jrnTotals[i-1])}`:fmt(v)),fmt(jrnGrand)];
+  const jrnTotCells=jrnTotals.map((v,i)=>{
+    if(i===0) return fmt(v);
+    const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&gapKpiAdjPrev!=null;
+    const prevForPct=useAdj?gapKpiAdjPrev:jrnTotals[i-1];
+    return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+  });
+  const jrnTotRow=['รวมทุก Journey',...jrnTotCells,fmt(jrnGrand)];
   document.getElementById('gap-jrn-tbl').innerHTML=mkTbl2(['Journey',...ML,'รวม'],jrnRows,jrnTotRow);
   const sd=mAgg2(DATA.simDel);
   const homeV=MONTHS.map(m=>gv2(sd,m,'home')),shopV=MONTHS.map(m=>gv2(sd,m,'shop'));
   mkBar100('chart-gap-del',[{label:'Delivery to Home',vals:homeV,color:'#000'},{label:'Pick Up at Shop',vals:shopV,color:'#7F7F7F'}]);
-  document.getElementById('gap-del-tbl').innerHTML=mkTbl2(['Delivery',...ML,'รวม'],[['🏠 Home',...homeV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,homeV[i-1])}`:fmt(v)),fmt(homeV.reduce((a,b)=>a+b,0))],['🏪 Shop',...shopV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,shopV[i-1])}`:fmt(v)),fmt(shopV.reduce((a,b)=>a+b,0))]],null);
+  const homeCells=homeV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simDelAdjPrev;const prevForPct=useAdj?simDelAdjPrev.home:homeV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  const shopCells=shopV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simDelAdjPrev;const prevForPct=useAdj?simDelAdjPrev.shop:shopV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  document.getElementById('gap-del-tbl').innerHTML=mkTbl2(['Delivery',...ML,'รวม'],[['🏠 Home',...homeCells,fmt(homeV.reduce((a,b)=>a+b,0))],['🏪 Shop',...shopCells,fmt(shopV.reduce((a,b)=>a+b,0))]],null);
   const st2=computeSimTypeDeliveryAgg(_simTypeDelFilter);
   const physV=MONTHS.map(m=>gv2(st2,m,'Physical')),esimV=MONTHS.map(m=>gv2(st2,m,'eSIM'));
   mkBar100('chart-gap-sim',[{label:'Physical SIM',vals:physV,color:'#000'},{label:'eSIM',vals:esimV,color:'#00C8FF'}]);
-  document.getElementById('gap-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,physV[i-1])}`:fmt(v)),fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,esimV[i-1])}`:fmt(v)),fmt(esimV.reduce((a,b)=>a+b,0))]],null);
+  let simTypeAdjPrev=null;
+  if(momInfo.isPartial){
+    simTypeAdjPrev=computeSimTypeDeliveryAgg(_simTypeDelFilter,{month:momInfo.prevMonth,day:momInfo.cutoffDay});
+  }
+  const physCells=physV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simTypeAdjPrev;const prevForPct=useAdj?gv2(simTypeAdjPrev,momInfo.prevMonth,'Physical'):physV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  const esimCells=esimV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simTypeAdjPrev;const prevForPct=useAdj?gv2(simTypeAdjPrev,momInfo.prevMonth,'eSIM'):esimV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  document.getElementById('gap-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physCells,fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimCells,fmt(esimV.reduce((a,b)=>a+b,0))]],null);
   renderCampaign();
 }
 function renderRC2(){
@@ -7599,7 +7710,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.14_20260830';
+const DASH_VERSION   = 'v4.15_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7610,6 +7721,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.15_20260830', note:'Fix MoM% ทั่ว dashboard (Device Sold, GA Postpaid, GA Prepaid): เดิมเทียบเดือนล่าสุดที่ยังไม่ครบเดือน (partial, as-of < จำนวนวันเต็มเดือน) กับเดือนก่อนหน้าแบบเต็มเดือนเสมอ ทำให้ MoM% ติดลบผิดเพี้ยนเสมอ (เช่น ก.ย. 9 วัน เทียบ ส.ค. 31 วัน) — เปลี่ยนให้เดือนล่าสุดที่ partial เทียบกับเดือนก่อนแบบ **day-matched** (ตัดเดือนก่อนให้เหลือแค่ 1 ถึง as-of วันเดียวกัน) แทน ส่วนคู่เดือนอื่นที่ครบเดือนทั้งคู่ยังคงเทียบเต็มเดือนเหมือนเดิมไม่เปลี่ยน — **ไม่กระทบยอดรวมที่แสดง เปลี่ยนแค่ตัวเลข MoM% เท่านั้น** · เพิ่มโครงสร้างหลัก daysInMonthOf()/isLatestPartialMonth()/getMoMCutoffInfo() + เพิ่ม cutoff parameter ให้ทุก aggregator ที่เกี่ยวข้อง (devSoldCatAgg/JourneyAgg/JourneyOpAgg/BrandAgg/ModelAgg, computeSimTypeDeliveryAgg, computeCampaignAgg, computeGAPreAgg/SimTypeAgg/CampaignAgg) + สร้างใหม่ 2 ฟังก์ชัน (computeGAPostJourneyDayCapped, computeSimDelDayCapped) สำหรับจุดที่ยังอ่าน aggregate เก่า (DATA.gaJourney/DATA.simDel) · แก้ครบ 15 จุด: Device Sold (dev-kpis, dev-cat-tbl, dev-jrn-tbl, Brand Scorecard รวม footer, Model Scorecard รวม footer), GA Postpaid (gap-kpis, gap-jrn-tbl, gap-del-tbl, gap-sim-tbl, campaign-tbl), GA Prepaid (gapre-kpis, gapre-jrn-tbl, gapre-sim-tbl, gapre-campaign-tbl), Daily Trend ทั้ง 3 (dsdt, gapdt, gapredt) · ทดสอบ end-to-end ด้วยข้อมูลจำลอง (ก.ค.=เต็มเดือน, ส.ค.=partial ถึงวันที่ 4) ยืนยันว่า MoM% ทุกจุดคำนวณ day-matched ถูกต้อง 100% ตรงกับคำนวณมือทุกค่า (300%/250%/100% ตรงกันทั้ง KPI หลักและ Daily Trend ทุกคู่) · หมายเหตุ: backup เวอร์ชันก่อนแก้เก็บไว้ที่ index_v4.14_backup_20260830.html' },
   { v:'v4.14_20260830', note:'Section "Campaign — Go Travel SIM / Tourist SIM / Mass" (GA-Prepaid): เปลี่ยน lookup field จาก product_name เป็น column ใหม่ <b>"New Proposition Name"</b> (TOS-New เท่านั้น) — data source อัปเดต column นี้เพิ่มมาแล้ว: เพิ่ม field newPropositionName ใน processRows (TOS-New เท่านั้น, TOS-OLD ว่างเสมอ) · เงื่อนไขใหม่: Go Travel SIM = ขึ้นต้นด้วย "GO Travel" (เหมือนเดิม), Tourist SIM = **มีคำว่า "Tourist" อยู่ตรงไหนก็ได้** (เปลี่ยนจากเดิมที่ต้องขึ้นต้นด้วย "THAILAND TOURIST" เพราะ column ใหม่มี pattern หลากหลายกว่า เช่น "eSIM Tourist...", "eSIM Thailand Tourist..."), Mass = ที่เหลือทั้งหมดรวมค่าว่าง/None/"-" · **นับเฉพาะ Sheet Name = TOS-New เท่านั้นก่อน** (TOS-OLD ไม่มี column นี้ จึงถูกตัดออกจาก section นี้ชั่วคราว) · อัปเดต tooltip ให้ตรงกับ logic ใหม่ · ทดสอบด้วยข้อมูลจำลองแล้วว่า TOS-OLD ถูกตัดออก, ทั้ง 2 รูปแบบ Tourist ("eSIM Tourist" และ "eSIM Thailand Tourist") จับได้ถูกต้อง, ค่าว่าง/"-" จัดเป็น Mass ถูกต้อง' },
   { v:'v4.13_20260830', note:'เพิ่ม Tab ใหม่ "GA – Prepaid" ต่อท้าย GA – Postpaid มี 5 sections: (1) Summary by month, (2) GA Prepaid แยก Journey (SIM Only - Prepaid, SIM Only - MNP Prepaid), (3) Daily Trend (พร้อม as-of logic เหมือน GA Postpaid), (4) Physical vs eSIM (มี Journey filter All/SIM Prepaid/MNP Prepaid), (5) Campaign — Go Travel SIM / Tourist SIM / Mass (แยกจาก product_name: ขึ้นต้น "GO Travel"→Go Travel SIM, ขึ้นต้น "THAILAND TOURIST"→Tourist SIM, ที่เหลือ→Mass ทั้ง TOS-OLD คอลัมน์ product_name และ TOS-New คอลัมน์ Product Name) · scope = 2 GA Prepaid journeys, status completed เท่านั้น (fix ไม่ผูก toggle) · **นับหน่วยด้วยผลรวม Quantity Cart แทนจำนวนแถว** (1 order ซื้อได้หลายซิม) — TOS-OLD ไม่มี column นี้จึงคิดเป็น 1 เสมอ · ไม่มี filter Delivery/UTM เพราะ Prepaid ส่งถึงบ้านเสมอและไม่มี UTM ที่มีความหมาย · สถาปัตยกรรม: รียูส computeGAPostRowFlags() เดิม (ครอบคลุม Prepaid อยู่แล้ว) พร้อม fix ช่องโหว่เดิมที่ qty จาก Quantity Cart ใช้เฉพาะ sim_only_prepaid ไม่ครอบคลุม sim_only_mnp_prepaid (ขยายให้ครอบคลุมทั้งคู่แล้ว) · ทดสอบด้วยข้อมูลจำลองครบทั้ง 2 sheets, 3 campaign categories, in-progress exclusion, และ Quantity Cart multiplier — ยืนยันตัวเลขถูกต้องทุกจุด' },
   { v:'v4.12_20260830', note:'Section "Campaign — เบอร์มงคล & 5G MyPlan": เพิ่ม filter Delivery — All, Delivery to Home, Pick Up at Shop โดยใช้เงื่อนไขเดียวกับตาราง SIM Only — Delivery Home vs Shop (rowDeliveryKey: TOS-OLD ดู delivery_location, TOS-New ดู Delivery Shop Name) — **default select = Delivery to Home** (ไม่ใช่ All); อัปเดต tooltip ให้ระบุ default filter ที่ใช้ — ทดสอบด้วยข้อมูลจำลองแล้วว่า default(home) ตัดยอด shop ออกถูกต้อง และ All = Home + Shop ตรงกัน' },
@@ -7876,31 +7988,33 @@ function devUtmValues(){
   computeDeviceSoldUnits().forEach(u=>{ if(u.utmSource) set.add(u.utmSource); });
   return [...set].sort((a,b)=>a==='ไม่ระบุ'?1:b==='ไม่ระบุ'?-1:a.localeCompare(b));
 }
-function devSoldCatAgg(utm,stsArr){
+function devSoldCatAgg(utm,stsArr,cutoff){
   const sts=stsArr||getSts();
   const res={};
   computeDeviceSoldUnits().forEach(u=>{
     if(!sts.includes(u.status)) return;
     if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(cutoff&&u.month===cutoff.month&&parseInt((u.day||'').slice(8),10)>cutoff.day) return;
     if(!res[u.month]) res[u.month]={};
     res[u.month][u.cat]=(res[u.month][u.cat]||0)+1;
   });
   return res;
 }
-function devSoldJourneyAgg(utm,stsArr){ // dedup-filtered mode (CFG.devJourneyFiltered=true)
+function devSoldJourneyAgg(utm,stsArr,cutoff){ // dedup-filtered mode (CFG.devJourneyFiltered=true)
   const sts=stsArr||getSts();
   const res={};
   computeDeviceSoldUnits().forEach(u=>{
     if(!sts.includes(u.status)) return;
     if(!DEV_J2.includes(u.journey)) return;
     if(utm&&utm!=='all'&&u.utmSource!==utm) return;
+    if(cutoff&&u.month===cutoff.month&&parseInt((u.day||'').slice(8),10)>cutoff.day) return;
     if(!res[u.journey]) res[u.journey]=MONTHS.map(()=>0);
     const mi=MONTHS.indexOf(u.month);
     if(mi>=0) res[u.journey][mi]++;
   });
   return res;
 }
-function devSoldJourneyOpAgg(utm,stsArr){ // raw mode (CFG.devJourneyFiltered=false) — นับทุก order ไม่กรอง device-eligible
+function devSoldJourneyOpAgg(utm,stsArr,cutoff){ // raw mode (CFG.devJourneyFiltered=false) — นับทุก order ไม่กรอง device-eligible
   const sts=stsArr||getSts();
   const res={};
   (DATA._rows||[]).forEach(r=>{
@@ -7908,31 +8022,34 @@ function devSoldJourneyOpAgg(utm,stsArr){ // raw mode (CFG.devJourneyFiltered=fa
     if(!DEV_J2.includes(r.journey)) return;
     if(!sts.includes(r.status)) return;
     if(utm&&utm!=='all'&&r.utmSource!==utm) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     if(!res[r.journey]) res[r.journey]=MONTHS.map(()=>0);
     const mi=MONTHS.indexOf(r.month);
     if(mi>=0) res[r.journey][mi]++;
   });
   return res;
 }
-function devSoldBrandAgg(utm,stsArr){
+function devSoldBrandAgg(utm,stsArr,cutoff){
   const sts=stsArr||getSts();
   const res={};
   computeDeviceSoldUnits().forEach(u=>{
     if(!sts.includes(u.status)) return;
     if(utm&&utm!=='all'&&u.utmSource!==utm) return;
     if(!u.brand||u.brand==='-'||String(u.brand).toLowerCase()==='true') return;
+    if(cutoff&&u.month===cutoff.month&&parseInt((u.day||'').slice(8),10)>cutoff.day) return;
     if(!res[u.month]) res[u.month]={};
     res[u.month][u.brand]=(res[u.month][u.brand]||0)+1;
   });
   return res;
 }
-function devSoldModelAgg(utm,stsArr){ // returns {model+'|||'+brand: {month: count}}
+function devSoldModelAgg(utm,stsArr,cutoff){ // returns {model+'|||'+brand: {month: count}}
   const sts=stsArr||getSts();
   const res={};
   computeDeviceSoldUnits().forEach(u=>{
     if(!sts.includes(u.status)) return;
     if(utm&&utm!=='all'&&u.utmSource!==utm) return;
     if(!u.product_name||u.product_name==='-') return;
+    if(cutoff&&u.month===cutoff.month&&parseInt((u.day||'').slice(8),10)>cutoff.day) return;
     const key=u.product_name+'|||'+u.brand;
     if(!res[key]) res[key]={};
     res[key][u.month]=(res[key][u.month]||0)+1;
@@ -8048,7 +8165,15 @@ function renderDSDT(){
   // KPI
   const prevIdx=MONTHS.indexOf(month)-1;
   let prevTotal=0;
-  if(prevIdx>=0){const pd=dsdtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  if(prevIdx>=0){
+    const pd=dsdtDailyUnits(MONTHS[prevIdx]);
+    if(isLatestPartialMonth(month)){
+      const cutoffDay=asOfDayForMonth(month);
+      prevTotal=Object.entries(pd).filter(([d])=>parseInt(d.slice(8),10)<=cutoffDay).reduce((a,[,v])=>a+v,0);
+    } else {
+      prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);
+    }
+  }
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('dsdt-kpis').innerHTML=[
@@ -8166,13 +8291,14 @@ function computeGAPostRowFlags(){
 // นับหน่วยด้วยผลรวม Quantity Cart (ใช้ flags จาก computeGAPostRowFlags ซึ่งคำนวณ qty ให้แล้ว)
 // ไม่มี filter Delivery/UTM เพราะ Prepaid ส่งถึงบ้านเสมอ ไม่มี UTM ที่มีความหมาย
 
-function computeGAPreAgg(){ // {month:{journey:qty}}
+function computeGAPreAgg(cutoff){ // {month:{journey:qty}}
   const flags=computeGAPostRowFlags();
   const res={};
   (DATA._rows||[]).forEach((r,i)=>{
     if(!GA_PRE_J.includes(r.journey)) return;
     const f=flags[i];
     if(!f.isGA) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     if(!res[r.month]) res[r.month]={};
     res[r.month][r.journey]=(res[r.month][r.journey]||0)+f.qty;
   });
@@ -8190,7 +8316,7 @@ function setGaPreSimJourney(j,el){
   if(el) el.classList.add('on');
   if(DATA.order) renderGAPrepaid2();
 }
-function computeGAPreSimTypeAgg(journeyFilter){
+function computeGAPreSimTypeAgg(journeyFilter,cutoff){
   const flags=computeGAPostRowFlags();
   const jf=journeyFilter&&journeyFilter!=='all'?journeyFilter:null;
   const res={};
@@ -8199,6 +8325,7 @@ function computeGAPreSimTypeAgg(journeyFilter){
     if(jf&&r.journey!==jf) return;
     const f=flags[i];
     if(!f.isGA) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     if(!res[r.month]) res[r.month]={};
     res[r.month][r.sim_type]=(res[r.month][r.sim_type]||0)+f.qty;
   });
@@ -8214,7 +8341,7 @@ function classifyPrepaidCampaign(newPropositionName){
   if(pnUpper.includes('TOURIST')) return 'Tourist SIM'; // เจาะคำว่า Tourist อยู่ตรงไหนก็ได้
   return 'Mass'; // รวมถึงค่าว่าง/None/'-'
 }
-function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM':qty,'Mass':qty}} — v4.14: TOS-New เท่านั้น
+function computeGAPreCampaignAgg(cutoff){ // {month:{'Go Travel SIM':qty,'Tourist SIM':qty,'Mass':qty}} — v4.14: TOS-New เท่านั้น
   const flags=computeGAPostRowFlags();
   const res={};
   (DATA._rows||[]).forEach((r,i)=>{
@@ -8222,6 +8349,7 @@ function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM'
     if(r._sheet!=='TOS-New') return; // v4.14: นับเฉพาะ TOS-New เท่านั้นก่อน (New Proposition Name มีแค่ TOS-New)
     const f=flags[i];
     if(!f.isGA) return;
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
     const cat=classifyPrepaidCampaign(r.newPropositionName);
     if(!res[r.month]) res[r.month]={'Go Travel SIM':0,'Tourist SIM':0,'Mass':0};
     res[r.month][cat]+=f.qty;
@@ -8231,34 +8359,70 @@ function computeGAPreCampaignAgg(){ // {month:{'Go Travel SIM':qty,'Tourist SIM'
 
 function renderGAPrepaid2(){
   if(!DATA||!DATA.order||!MONTHS.length) return;
+  const momInfo=getMoMCutoffInfo();
   // 1) Summary by month (KPI)
   const preAgg=computeGAPreAgg();
   const kpiV=MONTHS.map(m=>GA_PRE_J.reduce((s,j)=>s+((preAgg[m]||{})[j]||0),0));
-  document.getElementById('gapre-kpis').innerHTML=mkKpi2(kpiV);
+  let preAggAdjPrev=null, kpiAdjPrev=null;
+  if(momInfo.isPartial){
+    preAggAdjPrev=computeGAPreAgg({month:momInfo.prevMonth,day:momInfo.cutoffDay});
+    kpiAdjPrev=GA_PRE_J.reduce((s,j)=>s+((preAggAdjPrev[momInfo.prevMonth]||{})[j]||0),0);
+  }
+  document.getElementById('gapre-kpis').innerHTML=mkKpi2(kpiV,kpiAdjPrev);
   // 2) GA Prepaid แยก Journey
   const jrnColors={'SIM Only - Prepaid':'#00C8FF','SIM Only - MNP Prepaid':'#0284c7'};
   mkBar100('chart-gapre-jrn',GA_PRE_J.map(j=>({label:j,vals:MONTHS.map(m=>(preAgg[m]||{})[j]||0),color:jrnColors[j]||'#aaa'})));
-  const jrnRows=GA_PRE_J.map(j=>{const vals=MONTHS.map(m=>(preAgg[m]||{})[j]||0);const total=vals.reduce((a,b)=>a+b,0);return[j,...vals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,vals[i-1])}`:fmt(v)),fmt(total)];});
+  const jrnRows=GA_PRE_J.map(j=>{
+    const vals=MONTHS.map(m=>(preAgg[m]||{})[j]||0);const total=vals.reduce((a,b)=>a+b,0);
+    const cells=vals.map((v,i)=>{
+      if(i===0) return fmt(v);
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&preAggAdjPrev;
+      const prevForPct=useAdj?((preAggAdjPrev[momInfo.prevMonth]||{})[j]||0):vals[i-1];
+      return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+    });
+    return[j,...cells,fmt(total)];
+  });
   const jrnTotals=MONTHS.map((_,mi)=>jrnRows.reduce((s,r)=>s+parseInt(String(r[mi+1]).replace(/<[^>]*>/g,'').replace(/,/g,'')||0),0));
   const jrnGrand=jrnTotals.reduce((a,b)=>a+b,0);
-  const jrnTotRow=['รวมทุก Journey',...jrnTotals.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,jrnTotals[i-1])}`:fmt(v)),fmt(jrnGrand)];
+  const jrnTotCells=jrnTotals.map((v,i)=>{
+    if(i===0) return fmt(v);
+    const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&kpiAdjPrev!=null;
+    const prevForPct=useAdj?kpiAdjPrev:jrnTotals[i-1];
+    return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);
+  });
+  const jrnTotRow=['รวมทุก Journey',...jrnTotCells,fmt(jrnGrand)];
   document.getElementById('gapre-jrn-tbl').innerHTML=mkTbl2(['Journey',...ML,'รวม'],jrnRows,jrnTotRow);
   // 3) Physical vs eSIM
   const st2=computeGAPreSimTypeAgg(_gapreSimJourney);
   const physV=MONTHS.map(m=>gv2(st2,m,'Physical')),esimV=MONTHS.map(m=>gv2(st2,m,'eSIM'));
   mkBar100('chart-gapre-sim',[{label:'Physical SIM',vals:physV,color:'#000'},{label:'eSIM',vals:esimV,color:'#00C8FF'}]);
-  document.getElementById('gapre-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,physV[i-1])}`:fmt(v)),fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimV.map((v,i)=>i>0?`${fmt(v)}<br>${pct(v,esimV[i-1])}`:fmt(v)),fmt(esimV.reduce((a,b)=>a+b,0))]],null);
+  let simTypeAdjPrev=null;
+  if(momInfo.isPartial) simTypeAdjPrev=computeGAPreSimTypeAgg(_gapreSimJourney,{month:momInfo.prevMonth,day:momInfo.cutoffDay});
+  const physCells=physV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simTypeAdjPrev;const prevForPct=useAdj?gv2(simTypeAdjPrev,momInfo.prevMonth,'Physical'):physV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  const esimCells=esimV.map((v,i)=>{if(i===0)return fmt(v);const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&simTypeAdjPrev;const prevForPct=useAdj?gv2(simTypeAdjPrev,momInfo.prevMonth,'eSIM'):esimV[i-1];return prevForPct?`${fmt(v)}<br>${pct(v,prevForPct)}`:fmt(v);});
+  document.getElementById('gapre-sim-tbl').innerHTML=mkTbl2(['SIM Type',...ML,'รวม'],[['💳 Physical',...physCells,fmt(physV.reduce((a,b)=>a+b,0))],['📱 eSIM',...esimCells,fmt(esimV.reduce((a,b)=>a+b,0))]],null);
   // 4) Campaign: Go Travel SIM / Tourist SIM / Mass
   const camp=computeGAPreCampaignAgg();
   const campCats=['Go Travel SIM','Tourist SIM','Mass'];
   const campColors={'Go Travel SIM':'#0e9f6e','Tourist SIM':'#f59e0b','Mass':'#6366f1'};
   const campV={}; campCats.forEach(c=>{campV[c]=MONTHS.map(m=>(camp[m]||{})[c]||0);});
   mkBar2('chart-gapre-campaign',campCats.map(c=>({label:c,vals:campV[c],color:campColors[c]})));
-  const momOf=(vals,i)=>{if(i===0||vals[i-1]===0) return null; return ((vals[i]-vals[i-1])/vals[i-1]*100);};
-  const momCell=(vals,i)=>{const p=momOf(vals,i); if(p===null) return '<span style="color:var(--mid)">–</span>'; const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—'); return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;};
+  let campAdjPrev=null;
+  if(momInfo.isPartial) campAdjPrev=computeGAPreCampaignAgg({month:momInfo.prevMonth,day:momInfo.cutoffDay});
+  const momCell=(vals,i,adjPrevVal)=>{
+    let prev=vals[i-1];
+    if(momInfo.isPartial&&i===MONTHS.length-1&&adjPrevVal!=null) prev=adjPrevVal;
+    if(i===0||!prev) return '<span style="color:var(--mid)">–</span>';
+    const p=((vals[i]-prev)/prev*100);
+    const col=p>0?'#0A6E45':(p<0?'#FF0000':'var(--mid)'); const arrow=p>0?'▲':(p<0?'▼':'—');
+    return `<span style="color:${col}">${arrow}${Math.abs(p).toFixed(1)}%</span>`;
+  };
   const campRows=MONTHS.map((m,i)=>{
     const [yr,mo]=m.split('-').map(Number);
-    const cells=campCats.map(c=>`<td style="text-align:right;padding:5px 8px;font-weight:600">${campV[c][i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(campV[c],i)}</td>`).join('');
+    const cells=campCats.map(c=>{
+      const adjPrevVal=campAdjPrev?(campAdjPrev[momInfo.prevMonth]||{})[c]:null;
+      return `<td style="text-align:right;padding:5px 8px;font-weight:600">${campV[c][i].toLocaleString()}</td><td style="text-align:right;padding:5px 8px">${momCell(campV[c],i,adjPrevVal)}</td>`;
+    }).join('');
     return `<tr><td style="padding:5px 8px">${TH_MONTHS[mo-1]} ${yr}</td>${cells}</tr>`;
   }).join('');
   const totRow=campCats.map(c=>`<td style="text-align:right;padding:5px 8px">${campV[c].reduce((a,b)=>a+b,0).toLocaleString()}</td><td></td>`).join('');
@@ -8341,7 +8505,15 @@ function renderGAPREDT(){
   const peakDay=allDays[vals.indexOf(peak)];
   const prevIdx=MONTHS.indexOf(month)-1;
   let prevTotal=0;
-  if(prevIdx>=0){const pd=gapredtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  if(prevIdx>=0){
+    const pd=gapredtDailyUnits(MONTHS[prevIdx]);
+    if(isLatestPartialMonth(month)){
+      const cutoffDay=asOfDayForMonth(month);
+      prevTotal=Object.entries(pd).filter(([d])=>parseInt(d.slice(8),10)<=cutoffDay).reduce((a,[,v])=>a+v,0);
+    } else {
+      prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);
+    }
+  }
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('gapredt-kpis').innerHTML=[
@@ -8454,6 +8626,31 @@ function asOfDayForMonth(month){
   if(!rows.length) return 0;
   return Math.max(...rows.map(r=>parseInt(r.day.slice(8),10)));
 }
+
+// ══════════════════════════════════════════════════════════════════
+// SMART MoM (v4.15) — เดือนล่าสุดที่ยังไม่ครบเดือน (partial) ให้เทียบกับ
+// เดือนก่อนหน้าแบบ "ตัดวันให้เท่ากัน" (day-matched) แทนเทียบเต็มเดือน
+// ไม่กระทบยอดรวมที่แสดง เปลี่ยนแค่ตัวเลข MoM% เท่านั้น
+// ══════════════════════════════════════════════════════════════════
+function daysInMonthOf(monthStr){
+  const [y,m]=monthStr.split('-').map(Number);
+  return new Date(y,m,0).getDate();
+}
+function isLatestPartialMonth(monthStr){
+  if(!MONTHS.length||monthStr!==MONTHS[MONTHS.length-1]) return false;
+  const asOf=asOfDayForMonth(monthStr);
+  return asOf>0 && asOf<daysInMonthOf(monthStr);
+}
+// คืนค่า {isPartial, curMonth, prevMonth, cutoffDay} — ใช้เช็คก่อนคำนวณ MoM ของ index สุดท้ายในทุกจุด
+function getMoMCutoffInfo(){
+  if(!MONTHS.length) return {isPartial:false};
+  const curMonth=MONTHS[MONTHS.length-1];
+  if(!isLatestPartialMonth(curMonth)) return {isPartial:false};
+  const prevMonth=MONTHS[MONTHS.length-2];
+  if(!prevMonth) return {isPartial:false};
+  return {isPartial:true, curMonth, prevMonth, cutoffDay:asOfDayForMonth(curMonth)};
+}
+
 function renderGAPDT(){
   if(!DATA||!MONTHS.length) return;
   const month=document.getElementById('gapdt-month-sel')?.value;
@@ -8474,7 +8671,15 @@ function renderGAPDT(){
   // KPI
   const prevIdx=MONTHS.indexOf(month)-1;
   let prevTotal=0;
-  if(prevIdx>=0){const pd=gapdtDailyUnits(MONTHS[prevIdx]);prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);}
+  if(prevIdx>=0){
+    const pd=gapdtDailyUnits(MONTHS[prevIdx]);
+    if(isLatestPartialMonth(month)){
+      const cutoffDay=asOfDayForMonth(month);
+      prevTotal=Object.entries(pd).filter(([d])=>parseInt(d.slice(8),10)<=cutoffDay).reduce((a,[,v])=>a+v,0);
+    } else {
+      prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);
+    }
+  }
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('gapdt-kpis').innerHTML=[
@@ -9892,6 +10097,8 @@ function renderModelScorecard(){
   // devSoldModelAgg คืนค่า { model+'|||'+brand : { month: count } } อยู่แล้ว ตรงกับ prodMap เดิม
   const sts=getSts();
   const prodMap=devSoldModelAgg(_devUtmFilter,sts);
+  const momInfo=getMoMCutoffInfo();
+  const prodMapAdj=momInfo.isPartial?devSoldModelAgg(_devUtmFilter,sts,{month:momInfo.prevMonth,day:momInfo.cutoffDay}):null;
 
   // Sum across months → pick top N
   const modelTotals={};
@@ -9917,6 +10124,7 @@ function renderModelScorecard(){
     const [model,brand]=key.split('|||');
     const vals=MONTHS.map(m=>prodMap[key][m]||0);
     const total=vals.reduce((a,v)=>a+v,0);
+    const adjPrevForKey=momInfo.isPartial&&prodMapAdj&&prodMapAdj[key]?(prodMapAdj[key][momInfo.prevMonth]||0):null;
 
     const cells=vals.map((v,i)=>{
       const intensity=Math.round(v/maxVal*80);
@@ -9924,8 +10132,10 @@ function renderModelScorecard(){
       const textCol=intensity>50?'white':'var(--dark)';
 
       let chgHtml='', border='';
-      if(i>0&&vals[i-1]>0){
-        const pct=((v-vals[i-1])/vals[i-1]*100);
+      const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&adjPrevForKey!=null;
+      const prevForPct=useAdj?adjPrevForKey:vals[i-1];
+      if(i>0&&prevForPct>0){
+        const pct=((v-prevForPct)/prevForPct*100);
         const isDown=pct<=-threshold, isUp=pct>=threshold;
         const col=pct>=0?'var(--green)':'var(--red)';
         const arr=pct>=0?'▲':'▼';
@@ -9953,10 +10163,13 @@ function renderModelScorecard(){
   // Footer total row
   const footVals=MONTHS.map(m=>topModels.reduce((s,key)=>s+(prodMap[key][m]||0),0));
   const footTotal=footVals.reduce((a,b)=>a+b,0);
+  const footAdjPrev=momInfo.isPartial&&prodMapAdj?topModels.reduce((s,key)=>s+((prodMapAdj[key]||{})[momInfo.prevMonth]||0),0):null;
   const footCells=footVals.map((v,i)=>{
     let chgHtml='';
-    if(i>0&&footVals[i-1]>0){
-      const pct=((v-footVals[i-1])/footVals[i-1]*100);
+    const useAdj=momInfo.isPartial&&i===MONTHS.length-1&&footAdjPrev!=null;
+    const prevForPct=useAdj?footAdjPrev:footVals[i-1];
+    if(i>0&&prevForPct>0){
+      const pct=((v-prevForPct)/prevForPct*100);
       const col=pct>=0?'var(--green)':'var(--red)';
       chgHtml=`<span style="font-size:10px;color:${col};display:block">${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(1)}%</span>`;
     }
