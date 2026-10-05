@@ -136,7 +136,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
     <div class="sdiv"></div>
     <div class="sg"><label>เลือก Sheet ข้อมูล</label><select id="set-sheet" onchange="applySettings()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-size:13px;font-family:inherit;background:#fff;cursor:pointer"><option value="all">ทั้งหมด</option><option value="TOS-New">เฉพาะ TOS-New</option><option value="TOS-OLD">เฉพาะ TOS-OLD</option></select></div>
     <div class="sdiv"></div>
-    <div class="sg"><label>Device Sold แยก Journey</label><div class="sc-group"><span class="sc on" id="sc-djf-on" onclick="toggleDevJourneyFilter(true)">กรองเหมือน KPI</span><span class="sc" id="sc-djf-off" onclick="toggleDevJourneyFilter(false)">นับทั้งหมด</span></div><p style="font-size:11px;color:#7F7F7F;margin-top:6px">กรองเหมือน KPI: ตัด IOT ออก และนับ Accessories เฉพาะ Apple</p></div>
+    <div class="sg"><label>Device Sold แยก Journey</label><div class="sc-group"><span class="sc on" id="sc-djf-on" onclick="toggleDevJourneyFilter(true)">กรองเหมือน KPI</span><span class="sc" id="sc-djf-off" onclick="toggleDevJourneyFilter(false)">นับทั้งหมด</span></div><p style="font-size:11px;color:#7F7F7F;margin-top:6px">กรองเหมือน KPI: ตัด IOT ออก และนับ Accessories เฉพาะ Apple AirPods</p></div>
   </div>
 </div>
 <!-- Password Gate v3.11 -->
@@ -371,7 +371,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
         </div>
         <div class="kpi-row" id="dev-kpis"></div>
         <div class="ct-card"><h4>Device Sold แยก Category <button class="toggle-btn" onclick="toggleTable('dev-cat-tbl')">ตาราง ▾</button></h4><div style="position:relative;height:200px"><canvas id="chart-dev-cat"></canvas></div><div class="ct-tbl" id="dev-cat-tbl"></div></div>
-        <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· <b>Accessories</b> นับเฉพาะ Brand = Apple เท่านั้น</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
+        <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· <b>Accessories</b> นับเฉพาะ Brand = Apple และเป็น <b>AirPods</b> เท่านั้น (ตัด Apple Pencil, เคส, สายชาร์จ/adapter, AirTag, HomePod, EarPods ฯลฯ)</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
         <!-- ── Device Sold Daily Trend ─────────────────────────────── -->
         <div class="ct-card">
           <!-- Filter Bar -->
@@ -5435,6 +5435,13 @@ function mapCat(c){
   return 'Other';
 }
 
+// v4.18: Accessories ใน Device Sold นับเฉพาะ Brand = Apple และเป็น AirPods เท่านั้น
+// ตัด Apple Pencil, เคส, สายชาร์จ/adapter, AirTag, HomePod, EarPods ฯลฯ ออก (ไม่สนตัวพิมพ์เล็ก/ใหญ่ และช่องว่าง เช่น "AirPods 4", "AirPods Pro 3", "Air Pods")
+function isDeviceSoldAccessoryOk(brand, productName){
+  if(String(brand||'')!=='Apple') return false;
+  return String(productName||'').toLowerCase().replace(/\s+/g,'').includes('airpod');
+}
+
 // ============================================================
 // v3.14: Device Only / SIM Only Prepaid multi-item logic (TOS-New)
 // ============================================================
@@ -5795,7 +5802,7 @@ function processRows(allRows){
       // journey นี้ไม่มีปัญหา mixed SIM+Device order (1 order = 1 แถวเสมอใน TOS-New) จึงไม่ผ่าน dedup เดิม
       const items=getDeviceOnlyItems(r);
       items.forEach(it=>{
-        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple');
+        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||isDeviceSoldAccessoryOk(it.brand,it.product_name));
         if(!eligible) return;
         agg.devOrder[st][m]=(agg.devOrder[st][m]||0)+1;
         k2(agg.devCat[st],m,it.cat);
@@ -5811,7 +5818,7 @@ function processRows(allRows){
       });
     } else {
       const isDevEligible=DEV_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&
-        (r.product_cat!=='Accessories'||r.brand==='Apple');
+        (r.product_cat!=='Accessories'||isDeviceSoldAccessoryOk(r.brand,r.product_name));
       // Dedup: ถ้า order_id นี้เป็น mixed order (มี SIM-row ปนกับ Device-row)
       // และเคยนับ Device Sold ของ order_id นี้ไปแล้ว ให้ skip (กันนับซ้ำ)
       const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
@@ -7792,7 +7799,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.17_20260830';
+const DASH_VERSION   = 'v4.18_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7803,6 +7810,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.18_20260830', note:'Device Sold: เพิ่มเงื่อนไข Accessories — จากเดิมนับเฉพาะ Brand = Apple ปรับเป็น **Brand = Apple และต้องเป็น AirPods เท่านั้น** (ตรวจจากชื่อ Product มีคำว่า airpod ไม่สนตัวพิมพ์เล็ก/ใหญ่/ช่องว่าง) — สินค้า Apple ที่ไม่ใช่ AirPods เช่น Apple Pencil, เคส (TechWoven/Silicone), สายชาร์จ/20W Power Adapter, AirTag, HomePod, EarPods จะไม่ถูกนับ · เพิ่มฟังก์ชัน isDeviceSoldAccessoryOk(brand, productName) แล้วใช้ครบทุกจุดที่นับ Device Sold เพื่อให้ตัวเลขตรงกันทั้ง dashboard: processRows (aggregate ที่ Overview/Trend ใช้), computeDeviceSoldUnits (KPI/Category/Journey/Brand/Model/Top boxes) และ dsdtDailyUnits (Daily Trend) · อัปเดต tooltip 2 จุด · ทดสอบกับข้อมูลจริง (as of 30 ก.ย.): Accessories ที่นับ 172 → 88 ชิ้น (เหลือเฉพาะ AirPods 4/Pro 3/5), ก.ย. Accessories 72 → 31 และ Device Sold รวม 1,399 → 1,358 (MoM ก.ย. +58.6% → +55.4%) ยืนยันว่ายอดใน tab Device Sold = Overview aggregate = Daily Trend ตรงกันทุกเดือน · หมายเหตุ: backup ก่อนแก้ index_v4.17_backup.html' },
   { v:'v4.17_20260830', note:'เพิ่มกล่อง **Top Journey ประจำเดือน** ใน Section "สรุปประจำเดือน" (แท็บ Device Sold) ต่อจาก Top Brand/Top Model — ปรับ layout จาก 2 คอลัมน์เป็น 3 คอลัมน์ · ใช้ data source เดียวกับการ์ด "Device Sold แยก Journey" (เคารพ toggle "กรองเหมือน KPI"/"นับทั้งหมด") พร้อม MoM% แบบ day-matched เหมือนกล่องอื่น · ทดสอบกับข้อมูลจริง (ก.ย. 2026): Top Journey = Device Only 573 units (▲239.1% MoM) ตรงกับตัวเลขที่เห็นตอน filter journey chip "Device Only" เป๊ะ — ยืนยันด้วยว่า chart-dev-jrn (กราฟ Device Sold แยก Journey) ยังสร้างสำเร็จปกติ ไม่มี error จากการเพิ่มกล่องนี้' },
   { v:'v4.16_20260830', note:'เพิ่ม Section "สรุปประจำเดือน" ใต้ Device Sold Daily Trend (แท็บ Device Sold) — 2 กล่อง: **Top Brand ประจำเดือน** และ **Top Model ประจำเดือน** แสดงเฉพาะเดือนล่าสุด (current month) พร้อม MoM% (ใช้ logic day-matched แบบเดียวกับ v4.15 หากเดือนล่าสุดเป็น partial month) · เคารพ filter UTM Source ที่เลือกอยู่ (_devUtmFilter) และ toggle สถานะ (getSts()) เหมือน section อื่นในแท็บ · กรณีไม่มีข้อมูลเดือนก่อนเทียบ (เช่น รุ่นเพิ่งเปิดตัวเดือนนี้ ไม่มียอดเดือนก่อน) จะโชว์ "– (ไม่มีข้อมูลเดือนก่อนเทียบ)" แทนเปอร์เซ็นต์ที่ไม่มีความหมาย · ทดสอบกับข้อมูลจริง (ก.ย. 2026): Top Brand = Apple 891 units (▲199%), Top Model = iPhone 18 Pro 193 units (ไม่มีข้อมูล ส.ค. เทียบ เพราะเพิ่งเปิดตัว ก.ย.) — ตรงกับที่ตรวจสอบด้วยมือไว้ก่อนหน้า' },
   { v:'v4.15_20260830', note:'Fix MoM% ทั่ว dashboard (Device Sold, GA Postpaid, GA Prepaid): เดิมเทียบเดือนล่าสุดที่ยังไม่ครบเดือน (partial, as-of < จำนวนวันเต็มเดือน) กับเดือนก่อนหน้าแบบเต็มเดือนเสมอ ทำให้ MoM% ติดลบผิดเพี้ยนเสมอ (เช่น ก.ย. 9 วัน เทียบ ส.ค. 31 วัน) — เปลี่ยนให้เดือนล่าสุดที่ partial เทียบกับเดือนก่อนแบบ **day-matched** (ตัดเดือนก่อนให้เหลือแค่ 1 ถึง as-of วันเดียวกัน) แทน ส่วนคู่เดือนอื่นที่ครบเดือนทั้งคู่ยังคงเทียบเต็มเดือนเหมือนเดิมไม่เปลี่ยน — **ไม่กระทบยอดรวมที่แสดง เปลี่ยนแค่ตัวเลข MoM% เท่านั้น** · เพิ่มโครงสร้างหลัก daysInMonthOf()/isLatestPartialMonth()/getMoMCutoffInfo() + เพิ่ม cutoff parameter ให้ทุก aggregator ที่เกี่ยวข้อง (devSoldCatAgg/JourneyAgg/JourneyOpAgg/BrandAgg/ModelAgg, computeSimTypeDeliveryAgg, computeCampaignAgg, computeGAPreAgg/SimTypeAgg/CampaignAgg) + สร้างใหม่ 2 ฟังก์ชัน (computeGAPostJourneyDayCapped, computeSimDelDayCapped) สำหรับจุดที่ยังอ่าน aggregate เก่า (DATA.gaJourney/DATA.simDel) · แก้ครบ 15 จุด: Device Sold (dev-kpis, dev-cat-tbl, dev-jrn-tbl, Brand Scorecard รวม footer, Model Scorecard รวม footer), GA Postpaid (gap-kpis, gap-jrn-tbl, gap-del-tbl, gap-sim-tbl, campaign-tbl), GA Prepaid (gapre-kpis, gapre-jrn-tbl, gapre-sim-tbl, gapre-campaign-tbl), Daily Trend ทั้ง 3 (dsdt, gapdt, gapredt) · ทดสอบ end-to-end ด้วยข้อมูลจำลอง (ก.ค.=เต็มเดือน, ส.ค.=partial ถึงวันที่ 4) ยืนยันว่า MoM% ทุกจุดคำนวณ day-matched ถูกต้อง 100% ตรงกับคำนวณมือทุกค่า (300%/250%/100% ตรงกันทั้ง KPI หลักและ Daily Trend ทุกคู่) · หมายเหตุ: backup เวอร์ชันก่อนแก้เก็บไว้ที่ index_v4.14_backup_20260830.html' },
@@ -8049,12 +8057,12 @@ function computeDeviceSoldUnits(){
     if(isTosNewDeviceOnly){
       const items=(typeof getDeviceOnlyItems==='function')?getDeviceOnlyItems(r):[];
       items.forEach(it=>{
-        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple');
+        const eligible=DEV_CATS_CHECK.includes(it.cat)&&(it.cat!=='Accessories'||isDeviceSoldAccessoryOk(it.brand,it.product_name));
         if(!eligible) return;
         units.push({month:r.month,day:r.day,status:r.status,journey:r.journey,cat:it.cat,brand:it.brand,product_name:it.product_name,utmSource:r.utmSource});
       });
     } else {
-      const isDevEligible=DEV_SOLD_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&(r.product_cat!=='Accessories'||r.brand==='Apple');
+      const isDevEligible=DEV_SOLD_J.includes(r.journey)&&DEV_CATS_CHECK.includes(r.product_cat)&&(r.product_cat!=='Accessories'||isDeviceSoldAccessoryOk(r.brand,r.product_name));
       const isMixedOrder=r.orderIdForDedup&&mixedOrderIds.has(r.orderIdForDedup);
       const alreadyCounted=isMixedOrder&&devCountedOrderIds.has(r.orderIdForDedup);
       if(isDevEligible&&!alreadyCounted){
@@ -8220,11 +8228,11 @@ function dsdtDailyUnits(month){
     // Device Only (TOS-New): count items via getDeviceOnlyItems
     if(r._sheet==='TOS-New'&&r.journey==='Device Only'&&typeof getDeviceOnlyItems==='function'){
       getDeviceOnlyItems(r).forEach(it=>{
-        if(DEV_SOLD_CATS.includes(it.cat)&&(it.cat!=='Accessories'||it.brand==='Apple'))
+        if(DEV_SOLD_CATS.includes(it.cat)&&(it.cat!=='Accessories'||isDeviceSoldAccessoryOk(it.brand,it.product_name)))
           daily[r.day]++;
       });
     } else {
-      if(DEV_SOLD_CATS.includes(r.product_cat)&&(r.product_cat!=='Accessories'||r.brand==='Apple'))
+      if(DEV_SOLD_CATS.includes(r.product_cat)&&(r.product_cat!=='Accessories'||isDeviceSoldAccessoryOk(r.brand,r.product_name)))
         daily[r.day]++;
     }
   });
