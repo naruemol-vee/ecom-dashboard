@@ -358,6 +358,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
         <button class="tab-btn on" onclick="switchTab2('dev',this)">Device Sold</button>
         <button class="tab-btn" onclick="switchTab2('gap',this)">GA – Postpaid</button>
         <button class="tab-btn" onclick="switchTab2('gapre',this)">GA – Prepaid</button>
+        <button class="tab-btn" onclick="switchTab2('iot',this)">IOT</button>
         <button class="tab-btn" onclick="switchTab2('rc',this)">RC & Package</button>
         <button class="tab-btn" onclick="switchTab2('journey',this)">Order Type Breakdown</button>
         <button class="tab-btn" onclick="switchTab2('payfail',this)">Payment Fail</button>
@@ -378,6 +379,9 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
             <select id="dsdt-month-sel" onchange="renderDSDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap" title="ซ้อนเส้นยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน) เพื่อเทียบกับเดือนที่เลือก"><input type="checkbox" id="dsdt-cmp" onchange="toggleTrendCmp('dsdt')" style="accent-color:#F97316;cursor:pointer"> เทียบเดือนก่อน</label>
+            <span id="dsdt-cmp-legend" style="font-size:11px;color:var(--mid)"></span>
             <div style="width:1px;height:24px;background:var(--border)"></div>
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
             <div id="dsdt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
@@ -489,6 +493,9 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
             <select id="gapdt-month-sel" onchange="renderGAPDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
             <div style="width:1px;height:24px;background:var(--border)"></div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap" title="ซ้อนเส้นยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน) เพื่อเทียบกับเดือนที่เลือก"><input type="checkbox" id="gapdt-cmp" onchange="toggleTrendCmp('gapdt')" style="accent-color:#F97316;cursor:pointer"> เทียบเดือนก่อน</label>
+            <span id="gapdt-cmp-legend" style="font-size:11px;color:var(--mid)"></span>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
             <div id="gapdt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
           </div>
@@ -554,6 +561,9 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
             <select id="gapredt-month-sel" onchange="renderGAPREDT()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
             <div style="width:1px;height:24px;background:var(--border)"></div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap" title="ซ้อนเส้นยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน) เพื่อเทียบกับเดือนที่เลือก"><input type="checkbox" id="gapredt-cmp" onchange="toggleTrendCmp('gapredt')" style="accent-color:#F97316;cursor:pointer"> เทียบเดือนก่อน</label>
+            <span id="gapredt-cmp-legend" style="font-size:11px;color:var(--mid)"></span>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
             <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">Journey</span>
             <div id="gapredt-journey-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
           </div>
@@ -587,6 +597,41 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
           <div class="info-box" id="gapre-camp-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อ <b>GA Prepaid</b> เฉพาะ status <b>completed เท่านั้น</b> แยกตาม column <code>New Proposition Name</code> (<b>TOS-New เท่านั้น</b> — ยังไม่รวม TOS-OLD เพราะ column นี้มีแค่ TOS-New):<br><br>· <b>Go Travel SIM</b> = ขึ้นต้นด้วย "GO Travel" (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Tourist SIM</b> = มีคำว่า "Tourist" อยู่ตรงไหนก็ได้ในข้อความ (ไม่สนตัวพิมพ์เล็ก/ใหญ่)<br>· <b>Mass</b> = ที่เหลือทั้งหมด รวมถึงค่าว่าง/None/'-'<br><br>นับหน่วยด้วยผลรวม <code>Quantity Cart</code></div></div>
           <div style="position:relative;height:220px"><canvas id="chart-gapre-campaign"></canvas></div>
           <div class="ct-tbl" id="gapre-campaign-tbl"></div>
+        </div>
+      </div>
+      <div class="tab-body" id="tab-iot">
+        <div class="ct-card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px">
+          <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">เดือน</span>
+          <select id="iot-month-sel" onchange="renderIotTab()" style="font-size:13px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--rsm);background:#fff;color:#000;min-width:130px;cursor:pointer;font-family:inherit"></select>
+          <span style="font-size:11px;color:var(--mid)">— นับตาม toggle Confirm/Cancel ใน Settings เหมือน Device Sold · 1 ชิ้น = 1 unit (Smart Living นับตาม Quantity Cart/pipe) · MoM เดือนล่าสุดเทียบแบบ day-matched</span>
+          <button class="toggle-btn" onclick="toggleIotInfo()" id="iot-info-btn" style="margin-left:auto">ⓘ ที่มาข้อมูล</button>
+        </div>
+        <div id="iot-info-box" style="display:none;font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:12px 16px;margin-bottom:12px">
+          <b>Smart Living</b>: journey Device Only (device_only + single_product) ที่ Product Cat = Smart living — TOS-New แยกตามชิ้น (pipe/Quantity Cart), TOS-OLD นับ 1 แถว = 1 ชิ้น<br>
+          <b>IOT Subscription</b>: journey IOT/OTT subscription — TOS-New Order Type = iot_tol · TOS-OLD ชื่อสินค้าไม่มี "TrueID TV"<br>
+          <b>OTT Subscription</b>: journey IOT/OTT subscription — TOS-New Order Type = ott_tol · TOS-OLD ชื่อสินค้ามี "TrueID TV"<br>
+          Top 5 จัดอันดับตามชื่อสินค้า (Product Name) ของเดือนที่เลือก แยกแต่ละกลุ่ม · ชื่อที่ต่างกันเพียงจุดท้ายชื่อถือเป็นสินค้าเดียวกัน
+        </div>
+        <div class="kpi-row" id="iot-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+        <div id="iot-top5" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px"></div>
+        <div class="ct-card">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <span style="font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">กลุ่มสินค้า</span>
+            <div id="iot-group-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+            <div style="width:1px;height:24px;background:var(--border)"></div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap" title="ซ้อนเส้นยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน) เพื่อเทียบกับเดือนที่เลือก"><input type="checkbox" id="iot-cmp" onchange="toggleTrendCmp('iot')" style="accent-color:#F97316;cursor:pointer"> เทียบเดือนก่อน</label>
+            <span id="iot-cmp-legend" style="font-size:11px;color:var(--mid)"></span>
+          </div>
+          <div id="iot-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+          <h4>IOT Daily Trend — <span id="iot-chart-title">–</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;float:right"><button class="toggle-btn" onclick="toggleTable('iot-tbl-wrap')">ตาราง ▾</button></span>
+          </h4>
+          <div id="iot-insight" style="margin-bottom:10px"></div>
+          <div id="iot-legend" style="font-size:11px;color:var(--mid);margin-bottom:8px"></div>
+          <div id="iot-bars" style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:0 4px;border-bottom:1px solid var(--border)"></div>
+          <div id="iot-xlabels" style="display:flex;gap:2px;padding:4px 4px 0;overflow:hidden"></div>
+          <div style="font-size:11px;color:var(--mid);margin-top:8px">แท่งซ้อนสี = สัดส่วนแต่ละกลุ่มที่เลือก · แถบลายทาง = ยังไม่ถึง as-of · นับ units</div>
+          <div class="ct-tbl" id="iot-tbl-wrap" style="margin-top:10px"></div>
         </div>
       </div>
       <div class="tab-body" id="tab-rc">
@@ -7533,7 +7578,7 @@ function renderPayFail(){
   });
   tbl.innerHTML=h+`</tbody></table>`;
 }
-function renderAll(){if(!DATA.order)return;initDevUtmFilter();renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderGAPrepaid2();initGAPREDTFilters();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();initDSDTFilters();initGAPDTFilters();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
+function renderAll(){if(!DATA.order)return;initDevUtmFilter();renderOverview2();renderTrend2();renderDevSold2();renderGAPost2();renderGAPrepaid2();initGAPREDTFilters();renderRC2();renderJourney2();renderPayFail();updateAsOf();initODTFilters();initDSDTFilters();initGAPDTFilters();initIotTab();renderPayFailAnalysis();renderStackedCharts();initFRT();renderBrand();renderModelScorecard();}
 
 function renderOverview2(){
   const sts=getSts();
@@ -7839,7 +7884,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.19_20260830';
+const DASH_VERSION   = 'v4.21_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7850,6 +7895,8 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.21_20260830', note:'เพิ่ม **Tab ใหม่ "IOT"** (ต่อจาก GA – Prepaid) แยก 3 กลุ่ม: (1) Smart Living = journey Device Only (device_only + single_product) ที่ Product Cat = Smart living (TOS-New แยกตามชิ้นด้วย pipe/Quantity Cart เหมือน Device Sold, TOS-OLD นับ 1 แถว = 1 ชิ้น), (2) IOT Subscription, (3) OTT Subscription (ใช้กฎแยก iotOtt เดิมจาก v4.19) · ประกอบด้วย: การ์ดสรุปรายเดือน (รวม + 3 กลุ่ม พร้อม MoM day-matched สำหรับเดือนล่าสุดที่ยังไม่ครบ), **Top 5 สินค้าขายดีประจำเดือน** แยกแต่ละกลุ่ม (units, % ของกลุ่ม, MoM รายสินค้า, เลือกเดือนได้ default = ล่าสุด), และ **IOT Daily Trend** แบบเดียวกับ Device Sold (KPI, insight, แท่งรายวันซ้อนสีตามกลุ่ม, ตารางรายวัน, chip เลือกกลุ่ม) พร้อมสวิตช์ "เทียบเดือนก่อน" ใช้ฟังก์ชันเดียวกับ v4.20 · นับตาม toggle Confirm/Cancel เหมือน Device Sold · ไม่กระทบตัวเลข tab อื่น · หมายเหตุ: backup ก่อนแก้ index_v4.20_backup.html' },
+  { v:'v4.20_20260830', note:'(1) **Daily Trend ทั้ง 3 (Device Sold, GA Postpaid, GA Prepaid) — เพิ่มสวิตช์ "เทียบเดือนก่อน"** (เปิด/ปิดได้ ค่าเริ่มต้น = ปิด กราฟเหมือนเดิมทุกอย่าง): เมื่อเปิดจะซ้อนเส้นประสีส้ม + จุด แสดงยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน เช่น 8 ต.ค. เทียบ 8 ก.ย.) ทับบนแท่งเดือนที่เลือก · scale แกนปรับให้รวมค่าสูงสุดของเดือนก่อนด้วย เส้นจึงไม่หลุดกรอบ · tooltip ของแต่ละวันต่อท้ายด้วยยอดเดือนก่อน · การ์ด Total Units เพิ่มบรรทัดยอดเดือนก่อน: เดือนล่าสุดที่ยังไม่ครบ = ช่วงวันที่ 1–as of (day-matched เหมือน v4.15 ตรงกับตัวเลข MoM%), เดือนที่ครบแล้ว = ทั้งเดือน · legend ข้างสวิตช์บอกยอดเต็มเดือนของเดือนก่อน · เดือนแรกสุดที่ไม่มีเดือนก่อนแสดงข้อความ "ไม่มีข้อมูลเดือนก่อนหน้าให้เทียบ" · สวิตช์คงค่าไว้ตอนเปลี่ยนเดือน/journey · ไม่กระทบตัวเลข KPI/MoM% เดิม · หมายเหตุ: backup ก่อนแก้ index_v4.19_backup.html' },
   { v:'v4.19_20260830', note:'(1) **Order Daily Trend — MoM% แบบ day-matched (เหมือน v4.15)**: เดิมเดือนล่าสุดที่ยังไม่ครบเดือนถูกเทียบกับเดือนก่อนแบบเต็มเดือน → ปรับให้ตัดเดือนก่อนเหลือวันที่ 1 ถึง as-of เดียวกัน ทั้งการ์ด KPI (Total Orders) และตาราง "Order รายเดือน แยก Journey" (ทุกแถว + แถวรวม) เดือนที่ครบเดือนทั้งคู่ยังเทียบเต็มเดือนเหมือนเดิม · ทดสอบกับข้อมูล as of 20 ก.ย.: MoM Total Orders ▼39.7% → ▼4.9% ตรงกับคำนวณมือ (ก.ย. 7,709 vs ส.ค. วันที่ 1–20 = 8,109) · (2) **Order Type Breakdown — เรียงการ์ดใหม่**: SIM Only - Postpaid, Prepaid, MNP Postpaid, MNP Prepaid, Pre to Post, Device Only, Device Bundle New, Existing, MNP 1 Step, MNP 2 Step, Device Bundle P2P (= Pre to Post ของ Device Bundle), IOT/OTT (journey ที่ไม่อยู่ในลำดับต่อท้ายตามยอดรวม) · (3) **การ์ด IOT/OTT ใน Order Type Breakdown**: กราฟแท่งเปลี่ยนจากแยก TRUE/DTAC เป็นแยก IOT Subscription / OTT Subscription (stacked) · (4) **Order Daily Trend แยก IOT / OTT**: chip "IOT/OTT subscription" แตกเป็น 2 chip (IOT Subscription, OTT Subscription) เลือกแยกกันได้, ตาราง Order รายเดือน แยก Journey แทนที่แถว IOT/OTT ด้วย 2 แถว (ไม่มีแถวรวม), กราฟแท่งรายวัน: เลือก 1 chip = สีของ journey นั้น / เลือกทั้ง 2 = stacked IOT+OTT พร้อม legend, drilldown รายวันรองรับทั้ง 2 journey · กฎแยก: TOS-New ตาม Order Type (iot_tol = IOT, ott_tol = OTT), TOS-OLD ไม่มี field แยก ใช้ชื่อสินค้า (มี "TrueID TV" = OTT ที่เหลือ = IOT) → เพิ่ม field iotOtt ใน processRows · ตรวจสอบ: IOT+OTT รายเดือน = ยอด IOT/OTT เดิมตรงทุกเดือน (รวม 2,039 = IOT 1,521 + OTT 518), journey อื่นทุกตัวยอดเท่าเดิม · หมายเหตุ: backup ก่อนแก้ index_v4.18_backup.html' },
   { v:'v4.18_20260830', note:'Device Sold: เพิ่มเงื่อนไข Accessories — จากเดิมนับเฉพาะ Brand = Apple ปรับเป็น **Brand = Apple และต้องเป็น AirPods เท่านั้น** (ตรวจจากชื่อ Product มีคำว่า airpod ไม่สนตัวพิมพ์เล็ก/ใหญ่/ช่องว่าง) — สินค้า Apple ที่ไม่ใช่ AirPods เช่น Apple Pencil, เคส (TechWoven/Silicone), สายชาร์จ/20W Power Adapter, AirTag, HomePod, EarPods จะไม่ถูกนับ · เพิ่มฟังก์ชัน isDeviceSoldAccessoryOk(brand, productName) แล้วใช้ครบทุกจุดที่นับ Device Sold เพื่อให้ตัวเลขตรงกันทั้ง dashboard: processRows (aggregate ที่ Overview/Trend ใช้), computeDeviceSoldUnits (KPI/Category/Journey/Brand/Model/Top boxes) และ dsdtDailyUnits (Daily Trend) · อัปเดต tooltip 2 จุด · ทดสอบกับข้อมูลจริง (as of 30 ก.ย.): Accessories ที่นับ 172 → 88 ชิ้น (เหลือเฉพาะ AirPods 4/Pro 3/5), ก.ย. Accessories 72 → 31 และ Device Sold รวม 1,399 → 1,358 (MoM ก.ย. +58.6% → +55.4%) ยืนยันว่ายอดใน tab Device Sold = Overview aggregate = Daily Trend ตรงกันทุกเดือน · หมายเหตุ: backup ก่อนแก้ index_v4.17_backup.html' },
   { v:'v4.17_20260830', note:'เพิ่มกล่อง **Top Journey ประจำเดือน** ใน Section "สรุปประจำเดือน" (แท็บ Device Sold) ต่อจาก Top Brand/Top Model — ปรับ layout จาก 2 คอลัมน์เป็น 3 คอลัมน์ · ใช้ data source เดียวกับการ์ด "Device Sold แยก Journey" (เคารพ toggle "กรองเหมือน KPI"/"นับทั้งหมด") พร้อม MoM% แบบ day-matched เหมือนกล่องอื่น · ทดสอบกับข้อมูลจริง (ก.ย. 2026): Top Journey = Device Only 573 units (▲239.1% MoM) ตรงกับตัวเลขที่เห็นตอน filter journey chip "Device Only" เป๊ะ — ยืนยันด้วยว่า chart-dev-jrn (กราฟ Device Sold แยก Journey) ยังสร้างสำเร็จปกติ ไม่มี error จากการเพิ่มกล่องนี้' },
@@ -8282,6 +8329,218 @@ function dsdtDailyUnits(month){
   return daily;
 }
 
+
+
+// ══════════════════════════════════════════════════════════════════
+// v4.21: TAB "IOT" — Smart Living (Device Only/Single Product) · IOT Subscription · OTT Subscription
+// ══════════════════════════════════════════════════════════════════
+const IOT_GROUPS=[
+  {k:'sl',  lbl:'Smart Living', color:'#3b82f6', tip:'Journey Device Only (device_only + single_product) ที่ Product Cat = Smart living'},
+  {k:'iot', lbl:'IOT Subscription', color:'#10b981', tip:'Journey IOT/OTT subscription — TOS-New: Order Type = iot_tol, TOS-OLD: ชื่อสินค้าไม่มี "TrueID TV"'},
+  {k:'ott', lbl:'OTT Subscription', color:'#8b5cf6', tip:'Journey IOT/OTT subscription — TOS-New: Order Type = ott_tol, TOS-OLD: ชื่อสินค้ามี "TrueID TV"'}
+];
+let _iotItemsCache=null;
+function iotItems(){ // [{month,day,status,g,product}] — 1 รายการ = 1 ชิ้น/1 order
+  if(_iotItemsCache&&_iotItemsCache.ref===DATA._rows) return _iotItemsCache.items;
+  const items=[];
+  const clean=s=>String(s||'').trim().replace(/\.+$/,'')||'(ไม่ระบุชื่อสินค้า)';
+  (DATA._rows||[]).forEach(r=>{
+    if(!r.month||!r.day) return;
+    if(r.journey==='IOT/OTT subscription'){
+      items.push({month:r.month,day:r.day,status:r.status,g:r.iotOtt==='OTT Subscription'?'ott':'iot',product:clean(r.product_name)});
+    } else if(r.journey==='Device Only'){
+      if(r._sheet==='TOS-New'&&typeof getDeviceOnlyItems==='function'){
+        getDeviceOnlyItems(r).forEach(it=>{ if(it.cat==='IOT') items.push({month:r.month,day:r.day,status:r.status,g:'sl',product:clean(it.product_name)}); });
+      } else if(r.product_cat==='IOT'){
+        items.push({month:r.month,day:r.day,status:r.status,g:'sl',product:clean(normalizeProductSeg(r.product_name))});
+      }
+    }
+  });
+  _iotItemsCache={ref:DATA._rows,items};
+  return items;
+}
+function iotCutoff(month){ return isLatestPartialMonth(month)?asOfDayForMonth(month):null; }
+function iotCount(month,g,cutoff){ // จำนวนชิ้น (ตาม toggle Confirm/Cancel) ของเดือน/กลุ่ม ตัดวันไม่เกิน cutoff
+  const sts=getSts(); let n=0;
+  iotItems().forEach(it=>{ if(it.month!==month||!sts.includes(it.status)) return; if(g&&it.g!==g) return; if(cutoff&&parseInt(it.day.slice(8),10)>cutoff) return; n++; });
+  return n;
+}
+function iotPrevMonth(month){ const i=MONTHS.indexOf(month); return i>0?MONTHS[i-1]:null; }
+function iotMomHtml(cur,prev,small){
+  if(!prev) return `<span style="color:var(--mid);font-size:${small?10:11}px">${cur>0?'ใหม่ / ไม่มีเดือนก่อน':'–'}</span>`;
+  const p=(cur-prev)/prev*100;
+  return `<span style="font-weight:600;font-size:${small?10:11}px;color:${p>=0?'#0A6E45':'#FF0000'}">${p>=0?'▲':'▼'}${Math.abs(p).toFixed(1)}%</span>`;
+}
+let _iotSelGroups=new Set(['sl','iot','ott']);
+function initIotTab(){
+  if(!DATA||!MONTHS.length) return;
+  const sel=document.getElementById('iot-month-sel'); if(!sel) return;
+  const keep=sel.value;
+  sel.innerHTML='';
+  [...MONTHS].reverse().forEach((m,i)=>{
+    const [yr,mo]=m.split('-').map(Number);
+    const opt=document.createElement('option');
+    opt.value=m; opt.textContent=TH_MONTHS[mo-1]+' '+yr+(i===0?' (ล่าสุด)':'');
+    sel.appendChild(opt);
+  });
+  sel.value=(keep&&MONTHS.includes(keep))?keep:MONTHS[MONTHS.length-1];
+  const wrap=document.getElementById('iot-group-chips');
+  if(wrap){
+    wrap.innerHTML='';
+    IOT_GROUPS.forEach(g=>{
+      const c=document.createElement('span'); c.className='sc'+(_iotSelGroups.has(g.k)?' on':''); c.textContent=g.lbl; c.title=g.tip;
+      c.onclick=function(){
+        if(_iotSelGroups.has(g.k)){ if(_iotSelGroups.size>1){_iotSelGroups.delete(g.k);c.classList.remove('on');} }
+        else{_iotSelGroups.add(g.k);c.classList.add('on');}
+        renderIotDT();
+      };
+      wrap.appendChild(c);
+    });
+  }
+  renderIotTab();
+}
+function renderIotTab(){ renderIotSummary(); renderIotTop5(); renderIotDT(); }
+function renderIotSummary(){
+  const month=document.getElementById('iot-month-sel')?.value; if(!month) return;
+  const pm=iotPrevMonth(month), cut=iotCutoff(month);
+  const el=document.getElementById('iot-summary'); if(!el) return;
+  const cur={},prv={}; let tc=0,tp=0;
+  IOT_GROUPS.forEach(g=>{cur[g.k]=iotCount(month,g.k,null);prv[g.k]=pm?iotCount(pm,g.k,cut):0;tc+=cur[g.k];tp+=prv[g.k];});
+  const pmLbl=pm?TH_MONTHS[parseInt(pm.slice(5),10)-1]+(cut?' (1–'+cut+')':' (ทั้งเดือน)'):'';
+  const card=(lbl,v,p,color)=>`<div class="kpi-m"${color?` style="border-top:3px solid ${color}"`:''}><div class="kpi-m-lbl">${lbl}</div><div class="kpi-m-val">${v.toLocaleString()}</div><div style="margin-top:3px">${iotMomHtml(v,p)} <span style="font-size:11px;color:var(--mid)">MoM</span></div>${pm?`<div style="font-size:11px;color:var(--mid)">${pmLbl}: ${p.toLocaleString()}</div>`:''}</div>`;
+  el.innerHTML=card('รวม IOT ทั้งหมด',tc,tp,'')+IOT_GROUPS.map(g=>card(g.lbl,cur[g.k],prv[g.k],g.color)).join('');
+}
+function renderIotTop5(){
+  const month=document.getElementById('iot-month-sel')?.value; if(!month) return;
+  const el=document.getElementById('iot-top5'); if(!el) return;
+  const pm=iotPrevMonth(month), cut=iotCutoff(month), sts=getSts();
+  el.innerHTML=IOT_GROUPS.map(g=>{
+    const cur={},prv={}; let tot=0;
+    iotItems().forEach(it=>{
+      if(it.g!==g.k||!sts.includes(it.status)) return;
+      if(it.month===month){cur[it.product]=(cur[it.product]||0)+1;tot++;}
+      else if(pm&&it.month===pm&&!(cut&&parseInt(it.day.slice(8),10)>cut)){prv[it.product]=(prv[it.product]||0)+1;}
+    });
+    const top=Object.entries(cur).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,5);
+    const mx=top.length?top[0][1]:1;
+    const rows=top.length?top.map(([n,v],i)=>`<div style="padding:8px 0;border-top:${i?'1px solid var(--border)':'none'}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><div style="font-size:12px;font-weight:600;min-width:0;overflow-wrap:anywhere"><span style="color:var(--mid);margin-right:6px">${i+1}</span>${n}</div><div style="font-size:14px;font-weight:800;white-space:nowrap">${v.toLocaleString()}</div></div><div style="height:5px;background:rgba(0,0,0,.06);border-radius:3px;margin:5px 0 3px"><div style="height:5px;width:${Math.round(v/mx*100)}%;background:${g.color};border-radius:3px"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mid)"><span>${tot?(v/tot*100).toFixed(1):0}% ของกลุ่ม</span><span>${iotMomHtml(v,prv[n]||0,true)}</span></div></div>`).join(''):`<div style="font-size:12px;color:var(--mid);padding:12px 0">ไม่มียอดในเดือนนี้</div>`;
+    return `<div class="ct-card" style="margin:0;border-top:3px solid ${g.color}"><h4 style="margin-bottom:2px">Top 5 — ${g.lbl}</h4><div style="font-size:10px;color:var(--mid);margin-bottom:6px">รวมทั้งกลุ่ม ${tot.toLocaleString()} ชิ้น${top.length&&Object.keys(cur).length>5?` · อีก ${Object.keys(cur).length-5} รายการไม่แสดง`:''}</div>${rows}</div>`;
+  }).join('');
+}
+function iotDaily(month){ // {day: {sl,iot,ott}} ตามสถานะที่เลือก
+  const sts=getSts(), d={};
+  iotItems().forEach(it=>{ if(it.month!==month||!sts.includes(it.status)) return; (d[it.day]=d[it.day]||{sl:0,iot:0,ott:0})[it.g]++; });
+  return d;
+}
+function iotDailySel(month){ // {day: total เฉพาะกลุ่มที่เลือก} — ใช้กับ trendCmpPrev
+  const d=iotDaily(month),o={};
+  Object.entries(d).forEach(([k,v])=>{o[k]=[..._iotSelGroups].reduce((t,g)=>t+v[g],0);});
+  return o;
+}
+function renderIotDT(){
+  if(!DATA||!MONTHS.length) return;
+  const month=document.getElementById('iot-month-sel')?.value; if(!month) return;
+  const [yr,mo]=month.split('-').map(Number);
+  document.getElementById('iot-chart-title').textContent=TH_MONTHS[mo-1]+' '+yr;
+  const daysInMonth=new Date(yr,mo,0).getDate();
+  const asOfDay=asOfDayForMonth(month);
+  const effectiveDays=asOfDay>0?Math.min(daysInMonth,asOfDay):daysInMonth;
+  const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
+  const dd=iotDaily(month), selG=IOT_GROUPS.filter(g=>_iotSelGroups.has(g.k));
+  const seg=d=>selG.map(g=>(dd[d]&&dd[d][g.k])||0);
+  const vals=allDays.map(d=>seg(d).reduce((a,b)=>a+b,0));
+  const _cmp=trendCmpPrev('iot',month,iotDailySel);
+  const maxVal=Math.max(...vals,trendCmpMax(_cmp),1);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeDays=vals.filter(v=>v>0).length;
+  const peak=Math.max(...vals), peakDay=allDays[vals.indexOf(peak)];
+  const pm=iotPrevMonth(month);
+  let prevTotal=0;
+  if(pm){ const pd=iotDailySel(pm), cut=iotCutoff(month); prevTotal=Object.entries(pd).filter(([d])=>!cut||parseInt(d.slice(8),10)<=cut).reduce((a,[,v])=>a+v,0); }
+  const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
+  const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
+  const sub=t=>`<div style="font-size:11px;color:var(--mid);margin-top:3px">${t}</div>`;
+  document.getElementById('iot-kpis').innerHTML=[
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml+trendCmpKpiSub(_cmp)},
+    {lbl:'Avg / วัน',val:(effectiveDays>0?total/effectiveDays:0).toFixed(1),sub:sub('as of วันที่ '+effectiveDays)},
+    {lbl:'Peak Day',val:peak.toLocaleString(),sub:sub('วันที่ '+(peak>0&&peakDay?peakDay.slice(8):'-'))},
+    {lbl:'Active Days',val:activeDays,sub:sub('จาก '+effectiveDays+' วัน (as of)')},
+  ].map(k=>`<div class="kpi-m"><div class="kpi-m-lbl">${k.lbl}</div><div class="kpi-m-val">${k.val}</div>${k.sub}</div>`).join('');
+  const lastActive=vals.map((v,i)=>v>0?i:-1).filter(i=>i>=0).pop();
+  let ins;
+  if(total===0) ins=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 ไม่พบข้อมูลในเดือนนี้เลย</div>`;
+  else if(lastActive!==undefined&&(lastActive+1)<effectiveDays-3) ins=`<div style="padding:10px 14px;background:rgba(239,68,68,.08);border-left:3px solid #FF0000;border-radius:0 6px 6px 0;font-size:12px;">🚨 <strong>ไม่มียอดหลังวันที่ ${allDays[lastActive].slice(8)}</strong> — ถึงวันที่ ${effectiveDays} (as of)</div>`;
+  else ins=`<div style="padding:10px 14px;background:rgba(34,197,94,.08);border-left:3px solid #0A6E45;border-radius:0 6px 6px 0;font-size:12px;">✅ <strong>Active ${activeDays} จาก ${effectiveDays} วัน (as of)</strong></div>`;
+  document.getElementById('iot-insight').innerHTML=ins;
+  document.getElementById('iot-bars').innerHTML=allDays.map((d,i)=>{
+    const v=vals[i], isFuture=(i+1)>effectiveDays;
+    const H=maxVal>0?Math.max(Math.round(v/maxVal*100),v>0?4:0):0;
+    const parts=seg(d);
+    const segs=v>0?parts.map((n,j)=>n>0?`<div style="height:${Math.max(Math.round(n/v*H),1)}px;background:${selG[j].color}"></div>`:'').reverse().join(''):'';
+    const fut=isFuture?'repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03) 3px,transparent 3px,transparent 6px)':'rgba(0,0,0,0.07)';
+    const tipTxt=isFuture?`${d}: ยังไม่ถึงวันนี้ (as of ${effectiveDays})`:`${d}: ${v} units`+(selG.length>1?' ('+selG.map((g,j)=>g.lbl+' '+parts[j]).join(', ')+')':'');
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;justify-content:flex-end" title="${tipTxt}"><div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div><div style="width:100%;border-radius:2px 2px 0 0;overflow:hidden;display:flex;flex-direction:column;${v>0?'':`height:${isFuture?0:'0'}px;background:${fut}`}">${segs}</div></div>`;
+  }).join('');
+  document.getElementById('iot-xlabels').innerHTML=allDays.map(d=>{
+    const day=d.slice(8), show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
+    return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
+  }).join('');
+  trendCmpOverlay('iot',_cmp,maxVal);
+  const legend=selG.map(g=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${g.color}"></i>${g.lbl}</span>`).join('');
+  document.getElementById('iot-legend').innerHTML=legend;
+  // table
+  const th=(t,a)=>`<th style="text-align:${a};padding:4px 8px;font-size:10px;color:var(--mid);font-weight:700;text-transform:uppercase">${t}</th>`;
+  const rows=allDays.map((d,i)=>{
+    const dow=['อา','จ','อ','พ','พฤ','ศ','ส'][new Date(d).getDay()], isWkd=[0,6].includes(new Date(d).getDay());
+    const parts=seg(d);
+    return `<tr style="${isWkd?'color:var(--mid)':''}"><td style="padding:4px 8px">${d.slice(8)} (${dow})</td>${parts.map(n=>`<td style="text-align:right;padding:4px 8px">${n.toLocaleString()}</td>`).join('')}<td style="text-align:right;padding:4px 8px;font-weight:${vals[i]===peak&&peak>0?'700':'400'}">${vals[i].toLocaleString()}</td></tr>`;
+  }).join('');
+  const colTot=selG.map((g,j)=>allDays.reduce((t,d)=>t+seg(d)[j],0));
+  document.getElementById('iot-tbl-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border)">${th('วัน','left')}${selG.map(g=>th(g.lbl,'right')).join('')}${th('รวม','right')}</tr></thead><tbody>${rows}</tbody><tfoot><tr style="font-weight:700;border-top:1px solid var(--border)"><td style="padding:5px 8px">รวม</td>${colTot.map(n=>`<td style="text-align:right;padding:5px 8px">${n.toLocaleString()}</td>`).join('')}<td style="text-align:right;padding:5px 8px">${total.toLocaleString()}</td></tr></tfoot></table>`;
+}
+
+function toggleIotInfo(){const b=document.getElementById("iot-info-box");if(b)b.style.display=b.style.display==="none"?"block":"none";}
+
+// ══ v4.20: Daily Trend — เทียบเดือนก่อน (toggle) ══
+function trendCmpOn(key){const el=document.getElementById(key+'-cmp');return !!(el&&el.checked);}
+function toggleTrendCmp(key){ if(key==='dsdt') renderDSDT(); else if(key==='gapdt') renderGAPDT(); else if(key==='gapredt') renderGAPREDT(); else if(key==='iot') renderIotDT(); }
+function trendCmpPrev(key,month,dailyFn){ // null ถ้าปิดสวิตช์ ; {pm,arr,matched,partial,cutoff} ถ้าเปิด (arr[i]=ยอดเดือนก่อนวันที่ i+1, null ถ้าเดือนก่อนไม่มีวันนั้น)
+  if(!trendCmpOn(key)) return null;
+  const idx=MONTHS.indexOf(month)-1;
+  if(idx<0) return {none:true};
+  const pm=MONTHS[idx], pd=dailyFn(pm);
+  const [py,pmo]=pm.split('-').map(Number), pDays=new Date(py,pmo,0).getDate();
+  const [cy,cmo]=month.split('-').map(Number), cDays=new Date(cy,cmo,0).getDate();
+  const arr=Array.from({length:cDays},(_,i)=>i<pDays?(pd[pm+'-'+String(i+1).padStart(2,'0')]||0):null);
+  const partial=isLatestPartialMonth(month), cutoff=partial?asOfDayForMonth(month):null;
+  const matched=arr.reduce((t,v,i)=>t+((v!=null&&(!partial||i+1<=cutoff))?v:0),0);
+  return {pm,arr,matched,partial,cutoff};
+}
+function trendCmpMax(c){return (c&&c.arr)?Math.max(0,...c.arr.map(v=>v||0)):0;}
+function trendCmpKpiSub(c){
+  if(!c||c.none||!c.arr) return '';
+  const [,mo]=c.pm.split('-').map(Number);
+  const lbl=TH_MONTHS[mo-1]+(c.partial?' (1–'+c.cutoff+')':' (ทั้งเดือน)');
+  return `<div style="font-size:11px;margin-top:2px;color:var(--mid)">${lbl}: ${c.matched.toLocaleString()}</div>`;
+}
+function trendCmpOverlay(key,c,maxVal){
+  const bars=document.getElementById(key+'-bars'), lg=document.getElementById(key+'-cmp-legend');
+  if(!bars) return;
+  const old=bars.querySelector('.trend-cmp-svg'); if(old) old.remove();
+  if(!c){ if(lg) lg.innerHTML=''; return; }
+  if(c.none||!c.arr){ if(lg) lg.innerHTML='<span style="color:var(--mid)">ไม่มีข้อมูลเดือนก่อนหน้าให้เทียบ</span>'; return; }
+  const [,mo]=c.pm.split('-').map(Number), pn=TH_MONTHS[mo-1];
+  // tooltip: เติมยอดเดือนก่อนต่อท้าย title ของแต่ละวัน
+  Array.from(bars.children).forEach((col,i)=>{ const v=c.arr[i]; if(v!=null&&col.title!==undefined) col.title=(col.title||'')+' | '+pn+': '+v+' units'; });
+  const N=c.arr.length, H=130;
+  let pts=[],dots='';
+  c.arr.forEach((v,i)=>{ if(v==null) return; const x=i+0.5, y=H-(maxVal>0?v/maxVal*100:0); pts.push(x+','+y.toFixed(1)); dots+=`<line x1="${x}" y1="${y.toFixed(1)}" x2="${x}" y2="${y.toFixed(1)}" stroke="#F97316" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`; });
+  bars.style.position='relative';
+  const svg=`<svg class="trend-cmp-svg" viewBox="0 0 ${N} ${H}" preserveAspectRatio="none" style="position:absolute;left:4px;right:4px;bottom:0;width:calc(100% - 8px);height:${H}px;pointer-events:none;overflow:visible"><polyline points="${pts.join(' ')}" fill="none" stroke="#F97316" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>${dots}</svg>`;
+  bars.insertAdjacentHTML('beforeend',svg);
+  if(lg) lg.innerHTML=`<span style="display:inline-block;width:18px;border-top:2px dashed #F97316;vertical-align:middle;margin-right:5px"></span>${pn} ${c.pm.slice(0,4)} · เต็มเดือน ${c.arr.reduce((t,v)=>t+(v||0),0).toLocaleString()}`;
+}
+
 function renderDSDT(){
   if(!DATA||!MONTHS.length) return;
   const month=document.getElementById('dsdt-month-sel')?.value;
@@ -8292,7 +8551,8 @@ function renderDSDT(){
   const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
   const daily=dsdtDailyUnits(month);
   const vals=allDays.map(d=>daily[d]||0);
-  const maxVal=Math.max(...vals,1);
+  const _cmp=trendCmpPrev('dsdt',month,dsdtDailyUnits);
+  const maxVal=Math.max(...vals,trendCmpMax(_cmp),1);
   const total=vals.reduce((a,b)=>a+b,0);
   const activeDays=vals.filter(v=>v>0).length;
   const peak=Math.max(...vals);
@@ -8312,7 +8572,7 @@ function renderDSDT(){
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('dsdt-kpis').innerHTML=[
-    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml+trendCmpKpiSub(_cmp)},
     {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">เดือน ${daysInMonth} วัน</div>`},
     {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
     {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${daysInMonth} วัน</div>`},
@@ -8345,6 +8605,7 @@ function renderDSDT(){
     const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
     return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
   }).join('');
+  trendCmpOverlay('dsdt',_cmp,maxVal);
   // Table
   const tblRows=allDays.map((d,i)=>{
     const v=vals[i]; const day=d.slice(8);
@@ -8633,7 +8894,8 @@ function renderGAPREDT(){
   const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
   const daily=gapredtDailyUnits(month);
   const vals=allDays.map(d=>daily[d]||0);
-  const maxVal=Math.max(...vals,1);
+  const _cmp=trendCmpPrev('gapredt',month,gapredtDailyUnits);
+  const maxVal=Math.max(...vals,trendCmpMax(_cmp),1);
   const total=vals.reduce((a,b)=>a+b,0);
   const activeDays=vals.filter(v=>v>0).length;
   const peak=Math.max(...vals);
@@ -8652,7 +8914,7 @@ function renderGAPREDT(){
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('gapredt-kpis').innerHTML=[
-    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml+trendCmpKpiSub(_cmp)},
     {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">as of วันที่ ${effectiveDays}</div>`},
     {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
     {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${effectiveDays} วัน (as of)</div>`},
@@ -8684,6 +8946,7 @@ function renderGAPREDT(){
     const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
     return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
   }).join('');
+  trendCmpOverlay('gapredt',_cmp,maxVal);
   const tblRows=allDays.map((d,i)=>{
     const v=vals[i]; const day=d.slice(8);
     const dow=['อา','จ','อ','พ','พฤ','ศ','ส'][new Date(d).getDay()];
@@ -8798,7 +9061,8 @@ function renderGAPDT(){
   const allDays=Array.from({length:daysInMonth},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
   const daily=gapdtDailyUnits(month);
   const vals=allDays.map(d=>daily[d]||0);
-  const maxVal=Math.max(...vals,1);
+  const _cmp=trendCmpPrev('gapdt',month,gapdtDailyUnits);
+  const maxVal=Math.max(...vals,trendCmpMax(_cmp),1);
   const total=vals.reduce((a,b)=>a+b,0);
   const activeDays=vals.filter(v=>v>0).length;
   const peak=Math.max(...vals);
@@ -8818,7 +9082,7 @@ function renderGAPDT(){
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null?`<div style="font-size:11px;margin-top:3px;font-weight:600;color:${momPct>0?'#0A6E45':'#FF0000'}">${momPct>0?'▲':'▼'}${Math.abs(momPct)}% MoM</div>`:'';
   document.getElementById('gapdt-kpis').innerHTML=[
-    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml},
+    {lbl:'Total Units',val:total.toLocaleString(),sub:momHtml+trendCmpKpiSub(_cmp)},
     {lbl:'Avg / วัน',val:(activeDays>0?total/activeDays:0).toFixed(1),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">as of วันที่ ${effectiveDays}</div>`},
     {lbl:'Peak Day',val:peak.toLocaleString(),sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">วันที่ ${peakDay?peakDay.slice(8):'-'}</div>`},
     {lbl:'Active Days',val:activeDays,sub:`<div style="font-size:11px;color:var(--mid);margin-top:3px">จาก ${effectiveDays} วัน (as of)</div>`},
@@ -8854,6 +9118,7 @@ function renderGAPDT(){
     const show=(parseInt(day)%5===1)||parseInt(day)===daysInMonth;
     return `<div style="flex:1;min-width:0;text-align:center;font-size:9px;color:var(--mid)">${show?day:''}</div>`;
   }).join('');
+  trendCmpOverlay('gapdt',_cmp,maxVal);
   // Table
   const tblRows=allDays.map((d,i)=>{
     const v=vals[i]; const day=d.slice(8);
