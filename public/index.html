@@ -877,6 +877,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
           <div id="odt-stats" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
           <div id="odt-bars" style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:0 4px;border-bottom:1px solid var(--border)"></div>
           <div id="odt-xlabels" style="display:flex;gap:2px;padding:4px 4px 0;overflow:hidden"></div>
+          <div id="odt-bars-legend" style="font-size:11px;color:var(--mid);margin-top:6px"></div>
           <div style="font-size:11px;color:var(--mid);margin-top:8px">แถบเทา = ไม่มี order · แถบจาง = วันหยุดสุดสัปดาห์</div>
           <div class="ct-tbl" id="odt-tbl-wrap" style="margin-top:10px"></div>
         </div>
@@ -893,7 +894,9 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
             <div class="info-box-body">
               สรุปยอด Order รายเดือน แยกตาม Journey ทุก Journey<br>
               ใช้ Logic Status เดียวกับ Settings Toggle<br>
-              คลิกตัวเลขในตาราง เพื่อดู Daily Breakdown ของ Journey × เดือนนั้น
+              คลิกตัวเลขในตาราง เพื่อดู Daily Breakdown ของ Journey × เดือนนั้น<br><br>
+              <b>IOT Subscription / OTT Subscription</b>: แยกจาก journey IOT/OTT เดิม — TOS-New แยกตาม Order Type (<code>iot_tol</code> = IOT, <code>ott_tol</code> = OTT) · TOS-OLD ไม่มี field แยก จึงดูจากชื่อสินค้า (มีคำว่า "TrueID TV" = OTT ที่เหลือ = IOT)<br>
+              <b>%MoM</b>: เดือนล่าสุดที่ยังไม่ครบเดือน เทียบกับเดือนก่อนแบบ day-matched (ตัดเดือนก่อนให้เหลือวันที่ 1 ถึง as-of เดียวกัน) เดือนอื่นเทียบเต็มเดือนตามปกติ
             </div>
           </div>
           <div id="odt-jrn-tbl"></div>
@@ -5704,7 +5707,15 @@ function processRows(allRows){
     const utmSource=(utmSourceRaw&&utmSourceRaw!=='-')?utmSourceRaw:'ไม่ระบุ';
     // v4.14: New Proposition Name (TOS-New เท่านั้น) — ใช้แยก Campaign Go Travel SIM / Tourist SIM / Mass ใน GA-Prepaid แทน product_name
     const newPropositionName=sheet==='TOS-New'?String(get('TOS-New.New Proposition Name')||'').trim():'';
-    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw,isLuckySim,isDiy,utmSource,newPropositionName};
+    // v4.19: แยก IOT Subscription / OTT Subscription ภายใต้ journey "IOT/OTT subscription"
+    //  - TOS-New: Order Type ott_tol = OTT, iot_tol = IOT
+    //  - TOS-OLD (ไม่มี field แยก): ชื่อสินค้ามีคำว่า "TrueID TV" = OTT ที่เหลือ = IOT
+    let iotOtt='';
+    if(journey==='IOT/OTT subscription'){
+      if(sheet==='TOS-New') iotOtt=(orderType==='ott_tol')?'OTT Subscription':'IOT Subscription';
+      else iotOtt=/trueid\s*tv/i.test(String(get(sheet+'.product_name')||get(sheet+'.Product Name')||''))?'OTT Subscription':'IOT Subscription';
+    }
+    return{month,day,journey,product_cat,brand,product_name,package_name,sim_category,delivery,deliveryShopName,tmvhOrderType,matcode,simType2ForGA,sim_type,operator,rc,campaign,cancelled,inProgress,status,_rawWfStatus,_rawOrderType,_rawPayStage,_sheet:r._sheet,orderIdForDedup,_qtyCartRaw,_brandNameRaw,_productNameRaw,_productCatRaw,isLuckySim,isDiy,utmSource,newPropositionName,iotOtt};
   }).filter(r=>r.month&&/^\d{4}-\d{2}$/.test(r.month));
 
   // Debug: check TOS-OLD device rows
@@ -7779,10 +7790,39 @@ function renderRC2(){
 function renderJourney2(){
   const sts=getSts();const joMerged={};
   sts.forEach(st=>{Object.entries(DATA.journeyOp[st]||{}).forEach(([j,opMap])=>{if(!joMerged[j])joMerged[j]={};Object.entries(opMap).forEach(([op,mMap])=>{if(!joMerged[j][op])joMerged[j][op]={};Object.entries(mMap).forEach(([m,v])=>{joMerged[j][op][m]=(joMerged[j][op][m]||0)+v;});});});});
-  const journeys=Object.entries(joMerged).map(([j,opMap])=>{const total=Object.values(opMap).flatMap(m=>Object.values(m)).reduce((a,b)=>a+b,0);const lastVal=Object.values(opMap).reduce((s,m)=>s+(m[MONTHS[MONTHS.length-1]]||0),0);return{j,opMap,total,lastVal};}).sort((a,b)=>b.total-a.total);
+  const journeys=Object.entries(joMerged).map(([j,opMap])=>{const total=Object.values(opMap).flatMap(m=>Object.values(m)).reduce((a,b)=>a+b,0);const lastVal=Object.values(opMap).reduce((s,m)=>s+(m[MONTHS[MONTHS.length-1]]||0),0);return{j,opMap,total,lastVal};}).sort((a,b)=>{
+    // v4.19: เรียงการ์ด Order Type ตามลำดับที่กำหนด — journey ที่ไม่อยู่ในลำดับ ต่อท้ายตามยอดรวมมาก→น้อย
+    const ORDER=['SIM Only - Postpaid','SIM Only - Prepaid','SIM Only - MNP Postpaid','SIM Only - MNP Prepaid','SIM Only - Pre to Post','Device Only','Device Bundle New','Device Bundle Existing','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Bundle P2P','IOT/OTT subscription'];
+    const ia=ORDER.indexOf(a.j), ib=ORDER.indexOf(b.j);
+    if(ia>=0&&ib>=0) return ia-ib;
+    if(ia>=0) return -1;
+    if(ib>=0) return 1;
+    return b.total-a.total;
+  });
   const grid=document.getElementById('journey-grid');
   grid.innerHTML=journeys.map(({j,opMap,total,lastVal})=>{const cid='jc2-'+j.replace(/[^a-zA-Z0-9]/g,'');return`<div class="ct-card" style="padding:14px"><div style="font-size:10px;font-weight:700;color:#7F7F7F;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">ORDER TYPE</div><div style="font-size:13px;font-weight:700;margin-bottom:4px">${j}</div><div><span style="font-size:22px;font-weight:800;letter-spacing:-1px">${fmt(lastVal)}</span> <span style="font-size:11px;color:#7F7F7F">in ${ML[ML.length-1]}</span></div><div style="font-size:11px;color:#7F7F7F;margin-bottom:8px">Total ${fmt(total)} · ${MONTHS.length} months</div><div style="position:relative;height:130px"><canvas id="${cid}"></canvas></div></div>`;}).join('');
-  journeys.forEach(({j,opMap})=>{const trueD=MONTHS.map(m=>(opMap['TRUE']||{})[m]||0),dtacD=MONTHS.map(m=>(opMap['DTAC']||{})[m]||0);const hasDtac=dtacD.some(v=>v>0),cid='jc2-'+j.replace(/[^a-zA-Z0-9]/g,'');const el=document.getElementById(cid);if(!el)return;const opts=cOpts2();opts.scales.x.stacked=true;opts.scales.y.stacked=true;opts.plugins.legend.display=hasDtac;opts.plugins.legend.position='bottom';opts.plugins.legend.labels.font={size:10};opts.plugins.legend.labels.boxWidth=8;new Chart(el,{type:'bar',data:{labels:ML,datasets:[{label:'True',data:trueD,backgroundColor:'#FF0000',borderRadius:3},...(hasDtac?[{label:'DTAC',data:dtacD,backgroundColor:'#00C8FF',borderRadius:3}]:[])]},options:opts});});
+  // v4.19: ข้อมูลแยก IOT Subscription / OTT Subscription รายเดือน (ตาม status ที่เลือก) สำหรับการ์ด IOT/OTT
+  const iotOttByMonth={'IOT Subscription':MONTHS.map(()=>0),'OTT Subscription':MONTHS.map(()=>0)};
+  (DATA._rows||[]).forEach(r=>{
+    if(r.journey!=='IOT/OTT subscription'||!sts.includes(r.status)) return;
+    const mi=MONTHS.indexOf(r.month);
+    if(mi>=0) iotOttByMonth[odtJourneyKey(r)][mi]++;
+  });
+  journeys.forEach(({j,opMap})=>{
+    if(j==='IOT/OTT subscription'){
+      const elx=document.getElementById('jc2-'+j.replace(/[^a-zA-Z0-9]/g,''));
+      if(!elx) return;
+      const optsx=cOpts2();
+      optsx.scales.x.stacked=true;optsx.scales.y.stacked=true;
+      optsx.plugins.legend.display=true;optsx.plugins.legend.position='bottom';
+      optsx.plugins.legend.labels.font={size:10};optsx.plugins.legend.labels.boxWidth=8;
+      new Chart(elx,{type:'bar',data:{labels:ML,datasets:[
+        {label:'IOT Subscription',data:iotOttByMonth['IOT Subscription'],backgroundColor:ODT_J_COLORS['IOT Subscription'],borderRadius:3},
+        {label:'OTT Subscription',data:iotOttByMonth['OTT Subscription'],backgroundColor:ODT_J_COLORS['OTT Subscription'],borderRadius:3}
+      ]},options:optsx});
+      return;
+    }
+    const trueD=MONTHS.map(m=>(opMap['TRUE']||{})[m]||0),dtacD=MONTHS.map(m=>(opMap['DTAC']||{})[m]||0);const hasDtac=dtacD.some(v=>v>0),cid='jc2-'+j.replace(/[^a-zA-Z0-9]/g,'');const el=document.getElementById(cid);if(!el)return;const opts=cOpts2();opts.scales.x.stacked=true;opts.scales.y.stacked=true;opts.plugins.legend.display=hasDtac;opts.plugins.legend.position='bottom';opts.plugins.legend.labels.font={size:10};opts.plugins.legend.labels.boxWidth=8;new Chart(el,{type:'bar',data:{labels:ML,datasets:[{label:'True',data:trueD,backgroundColor:'#FF0000',borderRadius:3},...(hasDtac?[{label:'DTAC',data:dtacD,backgroundColor:'#00C8FF',borderRadius:3}]:[])]},options:opts});});
 }
 let aiHistory=[];
 function buildCtx2(){if(!DATA.order)return'ยังไม่มีข้อมูล';const sts=getSts();const devV=window._dV||[],gapV=window._gV||[],gapreV=window._gpV||[];const br=mAgg2(DATA.brand);const allB={};MONTHS.forEach(m=>Object.entries(br[m]||{}).forEach(([b,cnt])=>{allB[b]=(allB[b]||0)+cnt;}));const topBrands=Object.entries(allB).sort((a,b)=>b[1]-a[1]).slice(0,5);const gjm=mAgg2(DATA.gaJourney);return'eCommerce Dashboard ('+ML.join(', ')+' | Status: '+CFG.status+')\nDEVICE SOLD: '+MONTHS.map((m,i)=>ML[i]+'='+fmt(devV[i])).join(', ')+'\nGA POSTPAID: '+MONTHS.map((m,i)=>ML[i]+'='+fmt(gapV[i])).join(', ')+'\nGA PREPAID: '+MONTHS.map((m,i)=>ML[i]+'='+fmt(gapreV[i])).join(', ')+'\nTOP 5 BRANDS: '+topBrands.map(([b,t])=>b+':'+fmt(t)).join(', ')+'\nGA BY JOURNEY: '+GA_POST_J.map(j=>j+':'+MONTHS.map(m=>gv2(gjm,m,j)).join('/')).join(', ');}
@@ -7799,7 +7839,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.18_20260830';
+const DASH_VERSION   = 'v4.19_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7810,6 +7850,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.19_20260830', note:'(1) **Order Daily Trend — MoM% แบบ day-matched (เหมือน v4.15)**: เดิมเดือนล่าสุดที่ยังไม่ครบเดือนถูกเทียบกับเดือนก่อนแบบเต็มเดือน → ปรับให้ตัดเดือนก่อนเหลือวันที่ 1 ถึง as-of เดียวกัน ทั้งการ์ด KPI (Total Orders) และตาราง "Order รายเดือน แยก Journey" (ทุกแถว + แถวรวม) เดือนที่ครบเดือนทั้งคู่ยังเทียบเต็มเดือนเหมือนเดิม · ทดสอบกับข้อมูล as of 20 ก.ย.: MoM Total Orders ▼39.7% → ▼4.9% ตรงกับคำนวณมือ (ก.ย. 7,709 vs ส.ค. วันที่ 1–20 = 8,109) · (2) **Order Type Breakdown — เรียงการ์ดใหม่**: SIM Only - Postpaid, Prepaid, MNP Postpaid, MNP Prepaid, Pre to Post, Device Only, Device Bundle New, Existing, MNP 1 Step, MNP 2 Step, Device Bundle P2P (= Pre to Post ของ Device Bundle), IOT/OTT (journey ที่ไม่อยู่ในลำดับต่อท้ายตามยอดรวม) · (3) **การ์ด IOT/OTT ใน Order Type Breakdown**: กราฟแท่งเปลี่ยนจากแยก TRUE/DTAC เป็นแยก IOT Subscription / OTT Subscription (stacked) · (4) **Order Daily Trend แยก IOT / OTT**: chip "IOT/OTT subscription" แตกเป็น 2 chip (IOT Subscription, OTT Subscription) เลือกแยกกันได้, ตาราง Order รายเดือน แยก Journey แทนที่แถว IOT/OTT ด้วย 2 แถว (ไม่มีแถวรวม), กราฟแท่งรายวัน: เลือก 1 chip = สีของ journey นั้น / เลือกทั้ง 2 = stacked IOT+OTT พร้อม legend, drilldown รายวันรองรับทั้ง 2 journey · กฎแยก: TOS-New ตาม Order Type (iot_tol = IOT, ott_tol = OTT), TOS-OLD ไม่มี field แยก ใช้ชื่อสินค้า (มี "TrueID TV" = OTT ที่เหลือ = IOT) → เพิ่ม field iotOtt ใน processRows · ตรวจสอบ: IOT+OTT รายเดือน = ยอด IOT/OTT เดิมตรงทุกเดือน (รวม 2,039 = IOT 1,521 + OTT 518), journey อื่นทุกตัวยอดเท่าเดิม · หมายเหตุ: backup ก่อนแก้ index_v4.18_backup.html' },
   { v:'v4.18_20260830', note:'Device Sold: เพิ่มเงื่อนไข Accessories — จากเดิมนับเฉพาะ Brand = Apple ปรับเป็น **Brand = Apple และต้องเป็น AirPods เท่านั้น** (ตรวจจากชื่อ Product มีคำว่า airpod ไม่สนตัวพิมพ์เล็ก/ใหญ่/ช่องว่าง) — สินค้า Apple ที่ไม่ใช่ AirPods เช่น Apple Pencil, เคส (TechWoven/Silicone), สายชาร์จ/20W Power Adapter, AirTag, HomePod, EarPods จะไม่ถูกนับ · เพิ่มฟังก์ชัน isDeviceSoldAccessoryOk(brand, productName) แล้วใช้ครบทุกจุดที่นับ Device Sold เพื่อให้ตัวเลขตรงกันทั้ง dashboard: processRows (aggregate ที่ Overview/Trend ใช้), computeDeviceSoldUnits (KPI/Category/Journey/Brand/Model/Top boxes) และ dsdtDailyUnits (Daily Trend) · อัปเดต tooltip 2 จุด · ทดสอบกับข้อมูลจริง (as of 30 ก.ย.): Accessories ที่นับ 172 → 88 ชิ้น (เหลือเฉพาะ AirPods 4/Pro 3/5), ก.ย. Accessories 72 → 31 และ Device Sold รวม 1,399 → 1,358 (MoM ก.ย. +58.6% → +55.4%) ยืนยันว่ายอดใน tab Device Sold = Overview aggregate = Daily Trend ตรงกันทุกเดือน · หมายเหตุ: backup ก่อนแก้ index_v4.17_backup.html' },
   { v:'v4.17_20260830', note:'เพิ่มกล่อง **Top Journey ประจำเดือน** ใน Section "สรุปประจำเดือน" (แท็บ Device Sold) ต่อจาก Top Brand/Top Model — ปรับ layout จาก 2 คอลัมน์เป็น 3 คอลัมน์ · ใช้ data source เดียวกับการ์ด "Device Sold แยก Journey" (เคารพ toggle "กรองเหมือน KPI"/"นับทั้งหมด") พร้อม MoM% แบบ day-matched เหมือนกล่องอื่น · ทดสอบกับข้อมูลจริง (ก.ย. 2026): Top Journey = Device Only 573 units (▲239.1% MoM) ตรงกับตัวเลขที่เห็นตอน filter journey chip "Device Only" เป๊ะ — ยืนยันด้วยว่า chart-dev-jrn (กราฟ Device Sold แยก Journey) ยังสร้างสำเร็จปกติ ไม่มี error จากการเพิ่มกล่องนี้' },
   { v:'v4.16_20260830', note:'เพิ่ม Section "สรุปประจำเดือน" ใต้ Device Sold Daily Trend (แท็บ Device Sold) — 2 กล่อง: **Top Brand ประจำเดือน** และ **Top Model ประจำเดือน** แสดงเฉพาะเดือนล่าสุด (current month) พร้อม MoM% (ใช้ logic day-matched แบบเดียวกับ v4.15 หากเดือนล่าสุดเป็น partial month) · เคารพ filter UTM Source ที่เลือกอยู่ (_devUtmFilter) และ toggle สถานะ (getSts()) เหมือน section อื่นในแท็บ · กรณีไม่มีข้อมูลเดือนก่อนเทียบ (เช่น รุ่นเพิ่งเปิดตัวเดือนนี้ ไม่มียอดเดือนก่อน) จะโชว์ "– (ไม่มีข้อมูลเดือนก่อนเทียบ)" แทนเปอร์เซ็นต์ที่ไม่มีความหมาย · ทดสอบกับข้อมูลจริง (ก.ย. 2026): Top Brand = Apple 891 units (▲199%), Top Model = iPhone 18 Pro 193 units (ไม่มีข้อมูล ส.ค. เทียบ เพราะเพิ่งเปิดตัว ก.ย.) — ตรงกับที่ตรวจสอบด้วยมือไว้ก่อนหน้า' },
@@ -8010,7 +8051,7 @@ const ODT_JOURNEYS=[
   'Device Bundle New','Device Bundle Existing','Device Bundle P2P',
   'Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only',
   'SIM Only - Postpaid','SIM Only - MNP Postpaid','SIM Only - Pre to Post',
-  'SIM Only - Prepaid','SIM Only - MNP Prepaid','IOT/OTT subscription','Other'
+  'SIM Only - Prepaid','SIM Only - MNP Prepaid','IOT Subscription','OTT Subscription','Other'
 ];
 const ODT_J_COLORS={
   'Device Bundle New':'#1a56db','Device Bundle Existing':'#7e3af2',
@@ -8018,8 +8059,10 @@ const ODT_J_COLORS={
   'Device Bundle MNP 2 Step':'#f59e0b','Device Only':'#6366f1',
   'SIM Only - Postpaid':'#e02424','SIM Only - MNP Postpaid':'#f472b6',
   'SIM Only - Pre to Post':'#be123c','SIM Only - Prepaid':'#00C8FF',
-  'SIM Only - MNP Prepaid':'#0284c7','IOT/OTT subscription':'#64748b','Other':'#94a3b8'
+  'SIM Only - MNP Prepaid':'#0284c7','IOT Subscription':'#64748b','OTT Subscription':'#0d9488','IOT/OTT subscription':'#64748b','Other':'#94a3b8'
 };
+// v4.19: key ของ journey ที่ใช้ใน Order Daily Trend — journey "IOT/OTT subscription" ถูกแยกเป็น IOT Subscription / OTT Subscription
+function odtJourneyKey(r){ return r.journey==='IOT/OTT subscription' ? (r.iotOtt||'IOT Subscription') : r.journey; }
 
 // State: selected journeys (empty = All)
 let _odtSelJourneys=new Set(); // empty = All
@@ -8846,7 +8889,7 @@ function initODTFilters(){
     Object.values(DATA.journeyOp[st]||{}).forEach((_,i,arr)=>{});
     // ใช้ _rows ดึง journey ที่มีจริง
   });
-  (DATA._rows||[]).forEach(r=>{ if(r.journey&&r.journey!=='Other') jSet.add(r.journey); });
+  (DATA._rows||[]).forEach(r=>{ if(r.journey&&r.journey!=='Other') jSet.add(odtJourneyKey(r)); });
   const availJ=ODT_JOURNEYS.filter(j=>jSet.has(j));
 
   const chipWrap=document.getElementById('odt-journey-chips');
@@ -8905,7 +8948,7 @@ function odtDailyCount(month){
   DATA._rows.forEach(r=>{
     if(!r.month.startsWith(month)) return;
     if(!sts.includes(r.status)) return;
-    if(filterJ&&!filterJ.has(r.journey)) return;
+    if(filterJ&&!filterJ.has(odtJourneyKey(r))) return;
     if(!r.day||!r.day.startsWith(month)) return;
     daily[r.day]=(daily[r.day]||0)+1;
   });
@@ -8913,22 +8956,23 @@ function odtDailyCount(month){
 }
 
 // Compute monthly counts per journey (for breakdown table)
-function odtJourneyByMonth(){
-  if(!DATA) return {};
+function odtJourneyByMonth(cutoff){
+  if(!DATA||!DATA._rows) return {};
   const sts=odtSts();
   const filterJ=_odtSelJourneys.size>0?_odtSelJourneys:null;
   const result={};
-  sts.forEach(st=>{
-    const jop=DATA.journeyOp[st]||{};
-    Object.entries(jop).forEach(([j,opMap])=>{
-      if(filterJ&&!filterJ.has(j)) return;
-      if(!result[j]) result[j]={vals:MONTHS.map(()=>0),total:0};
-      MONTHS.forEach((m,mi)=>{
-        const v=Object.values(opMap).reduce((s,mObj)=>s+(mObj[m]||0),0);
-        result[j].vals[mi]+=v;
-        result[j].total+=v;
-      });
-    });
+  DATA._rows.forEach(r=>{
+    if(!r.journey||r.journey==='Other') return;
+    if(!sts.includes(r.status)) return;
+    const mi=MONTHS.indexOf(r.month);
+    if(mi<0) return;
+    // v4.15-style: ตัดวันของเดือน cutoff.month ไม่เกิน cutoff.day (ใช้คำนวณ MoM แบบ day-matched)
+    if(cutoff&&r.month===cutoff.month&&parseInt((r.day||'').slice(8),10)>cutoff.day) return;
+    const j=odtJourneyKey(r);
+    if(filterJ&&!filterJ.has(j)) return;
+    if(!result[j]) result[j]={vals:MONTHS.map(()=>0),total:0};
+    result[j].vals[mi]++;
+    result[j].total++;
   });
   return result;
 }
@@ -8959,7 +9003,13 @@ function renderODT(){
   let prevTotal=0;
   if(prevMonth){
     const pd=odtDailyCountForMonth(prevMonth);
-    prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);
+    if(isLatestPartialMonth(month)){
+      // v4.19: เดือนล่าสุดที่ยังไม่ครบเดือน → เทียบเดือนก่อนแบบ day-matched (ตัดวันให้เท่า as-of)
+      const cutoffDay=asOfDayForMonth(month);
+      prevTotal=Object.entries(pd).filter(([d])=>parseInt(d.slice(8),10)<=cutoffDay).reduce((a,[,v])=>a+v,0);
+    } else {
+      prevTotal=Object.values(pd).reduce((a,b)=>a+b,0);
+    }
   }
   const momPct=prevTotal>0?((total-prevTotal)/prevTotal*100).toFixed(1):null;
   const momHtml=momPct!==null
@@ -8992,13 +9042,38 @@ function renderODT(){
     ['Peak',peak+(peakDay?' (วันที่ '+peakDay.slice(8)+')':''),'#0A6E45'],
   ].map(([l,v,c])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 14px;min-width:90px;"><div style="font-size:10px;color:var(--mid)">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`).join('');
 
-  // Bar chart
-  const barColor='#3b82f6';
+  // Bar chart — v4.19: ถ้าเลือกเฉพาะ IOT/OTT Subscription → แยกสี (เลือกทั้งคู่ = stacked IOT + OTT)
+  const _selArr=[..._odtSelJourneys];
+  const _iotOttOnly=_selArr.length>0&&_selArr.every(j=>j==='IOT Subscription'||j==='OTT Subscription');
+  const _stackMode=_iotOttOnly&&_selArr.length===2;
+  const barColor=(_iotOttOnly&&_selArr.length===1)?(ODT_J_COLORS[_selArr[0]]||'#3b82f6'):'#3b82f6';
+  let dailySplit=null;
+  if(_stackMode){
+    dailySplit={'IOT Subscription':{},'OTT Subscription':{}};
+    const _sts=odtSts();
+    DATA._rows.forEach(r=>{
+      if(r.journey!=='IOT/OTT subscription') return;
+      if(!_sts.includes(r.status)) return;
+      if(!r.day||!r.day.startsWith(month)) return;
+      const k=odtJourneyKey(r);
+      dailySplit[k][r.day]=(dailySplit[k][r.day]||0)+1;
+    });
+  }
   const barsHtml=allDays.map((d,i)=>{
     const v=vals[i];
     const h=maxVal>0?Math.max(Math.round(v/maxVal*100),v>0?4:0):0;
-    const day=d.slice(8);
     const isWeekend=[0,6].includes(new Date(d).getDay());
+    if(_stackMode&&v>0){
+      const iv=dailySplit['IOT Subscription'][d]||0, ov=dailySplit['OTT Subscription'][d]||0;
+      const ih=Math.round(h*iv/v), oh=h-ih;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;" title="${d}: IOT ${iv} · OTT ${ov} (รวม ${v})">
+      <div style="font-size:8px;color:var(--mid);line-height:1">${v}</div>
+      <div style="display:flex;flex-direction:column;width:100%;opacity:${isWeekend?.55:1}">
+        <div style="height:${oh}px;width:100%;background:${ODT_J_COLORS['OTT Subscription']};border-radius:2px 2px 0 0"></div>
+        <div style="height:${ih}px;width:100%;background:${ODT_J_COLORS['IOT Subscription']}"></div>
+      </div>
+    </div>`;
+    }
     const bg=v===0?'rgba(0,0,0,0.07)':barColor;
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;" title="${d}: ${v}">
       <div style="font-size:8px;color:var(--mid);line-height:1">${v>0?v:''}</div>
@@ -9006,6 +9081,8 @@ function renderODT(){
     </div>`;
   }).join('');
   document.getElementById('odt-bars').innerHTML=barsHtml;
+  const _lg=document.getElementById('odt-bars-legend');
+  if(_lg) _lg.innerHTML=_stackMode?`<span style="display:inline-block;width:9px;height:9px;background:${ODT_J_COLORS['IOT Subscription']};margin-right:4px"></span>IOT Subscription &nbsp;&nbsp;<span style="display:inline-block;width:9px;height:9px;background:${ODT_J_COLORS['OTT Subscription']};margin-right:4px"></span>OTT Subscription`:'';
 
   // X labels (only every 5th)
   const xlHtml=allDays.map((d,i)=>{
@@ -9055,7 +9132,7 @@ function odtDailyCountForMonth(month){
   DATA._rows.forEach(r=>{
     if(!r.month.startsWith(month)) return;
     if(!sts.includes(r.status)) return;
-    if(filterJ&&!filterJ.has(r.journey)) return;
+    if(filterJ&&!filterJ.has(odtJourneyKey(r))) return;
     if(!r.day||!r.day.startsWith(month)) return;
     daily[r.day]=(daily[r.day]||0)+1;
   });
@@ -9066,6 +9143,10 @@ function renderODTJourneyTable(){
   if(!DATA||!MONTHS.length) return;
   const jData=odtJourneyByMonth();
   const filterJ=_odtSelJourneys.size>0?_odtSelJourneys:null;
+  // v4.19: MoM ของเดือนล่าสุดที่ยังไม่ครบเดือน เทียบแบบ day-matched
+  const _momInfo=getMoMCutoffInfo();
+  const jAdj=_momInfo.isPartial?odtJourneyByMonth({month:_momInfo.prevMonth,day:_momInfo.cutoffDay}):null;
+  const _prevIdx=_momInfo.isPartial?MONTHS.indexOf(_momInfo.prevMonth):-1;
   const sorted=Object.entries(jData)
     .filter(([j])=>!filterJ||filterJ.has(j))
     .filter(([,d])=>d.total>0)
@@ -9081,8 +9162,10 @@ function renderODTJourneyTable(){
     const dot=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>`;
     const cells=vals.map((v,i)=>{
       let chg='',border='';
-      if(i>0&&vals[i-1]>0){
-        const p=((v-vals[i-1])/vals[i-1]*100).toFixed(1);
+      const _useAdj=_momInfo.isPartial&&i===MONTHS.length-1&&jAdj;
+      const _prevV=_useAdj?(((jAdj[j]||{}).vals||[])[_prevIdx]||0):vals[i-1];
+      if(i>0&&_prevV>0){
+        const p=((v-_prevV)/_prevV*100).toFixed(1);
         const col=p>0?'#0A6E45':'#FF0000';
         chg=`<br><span style="font-size:10px;color:${col}">${p>0?'▲':'▼'}${Math.abs(p)}%</span>`;
       }
@@ -9099,9 +9182,11 @@ function renderODTJourneyTable(){
   // Total row
   const totalVals=MONTHS.map((_,mi)=>sorted.reduce((s,[,{vals}])=>s+(vals[mi]||0),0));
   const grandTotal=totalVals.reduce((a,b)=>a+b,0);
+  const _totAdjPrev=(_momInfo.isPartial&&jAdj)?sorted.reduce((s,[j])=>s+(((jAdj[j]||{}).vals||[])[_prevIdx]||0),0):null;
   const totalCells=totalVals.map((v,i)=>{
     let chg='';
-    if(i>0&&totalVals[i-1]>0){const p=((v-totalVals[i-1])/totalVals[i-1]*100).toFixed(1);const col=p>0?'#0A6E45':'#FF0000';chg=`<br><span style="font-size:10px;color:${col}">${p>0?'▲':'▼'}${Math.abs(p)}%</span>`;}
+    const _tPrev=(_momInfo.isPartial&&i===MONTHS.length-1&&_totAdjPrev!=null)?_totAdjPrev:totalVals[i-1];
+    if(i>0&&_tPrev>0){const p=((v-_tPrev)/_tPrev*100).toFixed(1);const col=p>0?'#0A6E45':'#FF0000';chg=`<br><span style="font-size:10px;color:${col}">${p>0?'▲':'▼'}${Math.abs(p)}%</span>`;}
     return`<td style="text-align:right;font-family:'IBM Plex Mono',monospace;padding:7px 10px;vertical-align:top">${v.toLocaleString()}${chg}</td>`;
   }).join('');
 
@@ -9116,7 +9201,7 @@ function renderODTJourneyTable(){
       <td style="text-align:right;font-family:'IBM Plex Mono',monospace;padding:7px 10px">${grandTotal.toLocaleString()}</td>
     </tr></tbody>
   </table>
-  <div style="font-size:11px;color:var(--mid);margin-top:8px">💡 คลิกตัวเลขใน cell เพื่อดู Daily Breakdown · %MoM เทียบเดือนก่อนหน้า</div>`;
+  <div style="font-size:11px;color:var(--mid);margin-top:8px">💡 คลิกตัวเลขใน cell เพื่อดู Daily Breakdown · %MoM เทียบเดือนก่อนหน้า (เดือนล่าสุดที่ยังไม่ครบเดือน เทียบแบบ day-matched ตัดวันเท่ากัน)</div>`;
 }
 
 // Daily drill-down: Journey × Month
@@ -9133,7 +9218,7 @@ function odtShowDailyJourney(journey, month, monthLabel){
     const sts=odtSts();
     const daily={};
     (DATA._rows||[]).forEach(r=>{
-      if(r.journey!==journey) return;
+      if(odtJourneyKey(r)!==journey) return;
       if(!r.month.startsWith(month)) return;
       if(!sts.includes(r.status)) return;
       if(!r.day||!r.day.startsWith(month)) return;
