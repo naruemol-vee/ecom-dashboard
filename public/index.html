@@ -136,7 +136,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
     <div class="sdiv"></div>
     <div class="sg"><label>เลือก Sheet ข้อมูล</label><select id="set-sheet" onchange="applySettings()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rsm);font-size:13px;font-family:inherit;background:#fff;cursor:pointer"><option value="all">ทั้งหมด</option><option value="TOS-New">เฉพาะ TOS-New</option><option value="TOS-OLD">เฉพาะ TOS-OLD</option></select></div>
     <div class="sdiv"></div>
-    <div class="sg"><label>Device Sold แยก Journey</label><div class="sc-group"><span class="sc on" id="sc-djf-on" onclick="toggleDevJourneyFilter(true)">กรองเหมือน KPI</span><span class="sc" id="sc-djf-off" onclick="toggleDevJourneyFilter(false)">นับทั้งหมด</span></div><p style="font-size:11px;color:#7F7F7F;margin-top:6px">กรองเหมือน KPI: ตัด IOT ออก และนับ Accessories เฉพาะ Apple AirPods</p></div>
+    <div class="sg"><label>Device Sold แยก Journey</label><div class="sc-group"><span class="sc on" id="sc-djf-on" onclick="toggleDevJourneyFilter(true)">กรองเหมือน KPI</span><span class="sc" id="sc-djf-off" onclick="toggleDevJourneyFilter(false)">นับทั้งหมด</span></div><p style="font-size:11px;color:#7F7F7F;margin-top:6px">กรองเหมือน KPI: ตัด IOT และ Accessories (รวม AirPods) ออก นับเฉพาะ Smartphone / Tablet / Smartwatch</p></div>
   </div>
 </div>
 <!-- Password Gate v3.11 -->
@@ -372,7 +372,7 @@ var hyparquet=(()=>{var Ue=Object.defineProperty;var sn=Object.getOwnPropertyDes
         </div>
         <div class="kpi-row" id="dev-kpis"></div>
         <div class="ct-card"><h4>Device Sold แยก Category <button class="toggle-btn" onclick="toggleTable('dev-cat-tbl')">ตาราง ▾</button></h4><div style="position:relative;height:200px"><canvas id="chart-dev-cat"></canvas></div><div class="ct-tbl" id="dev-cat-tbl"></div></div>
-        <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· <b>Accessories</b> นับเฉพาะ Brand = Apple และเป็น <b>AirPods</b> เท่านั้น (ตัด Apple Pencil, เคส, สายชาร์จ/adapter, AirTag, HomePod, EarPods ฯลฯ)</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
+        <div class="ct-card"><h4>Device Sold แยก Journey <span style="display:inline-flex;align-items:center;gap:6px"><button class="toggle-btn" onclick="toggleTable('dev-jrn-tbl')">ตาราง ▾</button><span class="info-btn" id="djf-info-btn" onclick="toggleDjfInfo()">ⓘ</span></span></h4><div class="info-box" id="djf-info-box"><div class="info-box-title">📋 ที่มาของข้อมูลตารางนี้</div><div class="info-box-body">นับจากคำสั่งซื้อที่ผ่านเงื่อนไขเดียวกับการ์ด <b>Device Sold</b>:<br><br>· Journey ที่นับ: Device Bundle New, Existing, P2P, MNP 1 Step, MNP 2 Step, Device Only<br>· ตัด <b>IOT/OTT</b> ออก<br>· ตัด <b>Accessories</b> ทั้งหมดออก (รวม AirPods) — นับเฉพาะ Smartphone, Tablet, Smartwatch</div></div><div style="position:relative;height:200px"><canvas id="chart-dev-jrn"></canvas></div><div class="ct-tbl" id="dev-jrn-tbl"></div></div>
         <!-- ── Device Sold Daily Trend ─────────────────────────────── -->
         <div class="ct-card">
           <!-- Filter Bar -->
@@ -5483,7 +5483,7 @@ function mapCat(c){
   return 'Other';
 }
 
-// v4.18: Accessories ใน Device Sold นับเฉพาะ Brand = Apple และเป็น AirPods เท่านั้น
+// v4.22: Device Sold ไม่นับ Accessories เลย (รวม AirPods) — นับเฉพาะ Smartphone/Tablet/Smartwatch ผ่าน DEV_CATS_CHECK/DEV_SOLD_CATS ; ฟังก์ชันนี้คงไว้เพื่อความเข้ากันได้ แต่ไม่ถูกเรียกในทางปฏิบัติอีก (ประวัติ v4.18: เดิมนับเฉพาะ Apple AirPods)
 // ตัด Apple Pencil, เคส, สายชาร์จ/adapter, AirTag, HomePod, EarPods ฯลฯ ออก (ไม่สนตัวพิมพ์เล็ก/ใหญ่ และช่องว่าง เช่น "AirPods 4", "AirPods Pro 3", "Air Pods")
 function isDeviceSoldAccessoryOk(brand, productName){
   if(String(brand||'')!=='Apple') return false;
@@ -5804,7 +5804,7 @@ function processRows(allRows){
   // Pre-pass: หา order_id ที่มี SIM-row ปนกับ Device-row ในออเดอร์เดียวกัน (TOS-OLD)
   // เช่น order ที่ขายซิม Postpaid + เครื่อง ในออเดอร์เดียว — ต้อง dedup ไม่ให้นับ Device Sold 2 ครั้ง
   const SIM_JOURNEYS=['SIM Only - Postpaid','SIM Only - Prepaid','SIM Only - MNP Postpaid','SIM Only - MNP Prepaid','SIM Only - Pre to Post'];
-  const DEV_CATS_CHECK_PRE=['Smartphone','Tablet','Smartwatch','Accessories'];
+  const DEV_CATS_CHECK_PRE=['Smartphone','Tablet','Smartwatch'];
   const orderHasSim={}, orderHasDev={};
   processed.forEach(r=>{
     if(!r.orderIdForDedup) return;
@@ -5850,7 +5850,7 @@ function processRows(allRows){
     const k2=(obj,m2,k,v=1)=>{if(!obj[m2])obj[m2]={};obj[m2][k]=(obj[m2][k]||0)+v;};
     const ks=agg.devCat[st]; // shorthand
     // Accessories นับเฉพาะ Brand = Apple
-    const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch','Accessories'];
+    const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch'];
     // v3.14: TOS-New journey "Device Only" (order type device_only/single_product) อาจมีหลายชิ้นต่อออเดอร์
     // (Quantity Cart > 1, Brand Name/Product Name/Product Cat คั่นด้วย pipe) — ต้องนับรายชิ้น แทนนับทั้งออเดอร์เป็น 1
     const isTosNewDeviceOnly=r._sheet==='TOS-New'&&r.journey==='Device Only';
@@ -6825,7 +6825,6 @@ function renderTrendMini(trendId, rateId, titleId, dataAgg){
 function renderDevice(){
   const dc2=mergeStatAgg(DATA.devCat);
   const cats=['Smartphone'];
-  if(chips.acc) cats.push('Accessories');
   if(chips.watch) cats.push('Smartwatch');
   if(chips.tab) cats.push('Tablet');
   // helper: ดึงค่าตาม status filter และ chip
@@ -7582,7 +7581,7 @@ function renderAll(){if(!DATA.order)return;initDevUtmFilter();renderOverview2();
 
 function renderOverview2(){
   const sts=getSts();
-  const DEV_CATS_OV=['Smartphone','Tablet','Smartwatch','Accessories'];
+  const DEV_CATS_OV=['Smartphone','Tablet','Smartwatch'];
   const devV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{Object.entries(DATA.devCat[st]||{}).forEach(([mm,kv])=>{if(mm===m)DEV_CATS_OV.forEach(cat=>{n+=(kv[cat]||0);});});});return n;});
   const gapV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{const gj=DATA.gaJourney[st]||{};Object.entries(gj).forEach(([mm,kv])=>{if(mm===m)GA_POST_J.forEach(j=>{n+=(kv[j]||0);});});});return n;});
   const gapreV=MONTHS.map(m=>{let n=0;sts.forEach(st=>{const gj=DATA.gaJourney[st]||{};Object.entries(gj).forEach(([mm,kv])=>{if(mm===m)GA_PRE_J.forEach(j=>{n+=(kv[j]||0);});});});return n;});
@@ -7598,9 +7597,9 @@ function renderTrend2(){
 }
 function renderDevSold2(){
   const dc2=devSoldCatAgg(_devUtmFilter);
-  const cats=['Smartphone','Tablet','Smartwatch','Accessories'];
-  const catColors={'Smartphone':'#1a56db','Tablet':'#0e9f6e','Smartwatch':'#ff5a1f','Accessories':'#9333ea'};
-  const catDash={'Smartphone':[],'Tablet':[5,3],'Smartwatch':[3,3],'Accessories':[8,3]};
+  const cats=['Smartphone','Tablet','Smartwatch'];
+  const catColors={'Smartphone':'#1a56db','Tablet':'#0e9f6e','Smartwatch':'#ff5a1f'};
+  const catDash={'Smartphone':[],'Tablet':[5,3],'Smartwatch':[3,3]};
   const totals=MONTHS.map(m=>cats.reduce((s,cat)=>s+gv2(dc2,m,cat),0));
   const momInfo=getMoMCutoffInfo();
   let kpiAdjPrev=null, catAdjPrevByCat=null;
@@ -7884,7 +7883,7 @@ function toggleDelInfo(){const b=document.getElementById('del-info-box');if(!b)r
 // Major : เปลี่ยน data schema / GA logic หลัก / redesign ใหญ่
 // Minor : เพิ่ม feature / tab / chart ใหม่ — bump 01→02→... ภายในวัน
 // Date  : วันที่แก้ไขล่าสุด เปลี่ยนทุกครั้งที่ bump
-const DASH_VERSION   = 'v4.21_20260830';
+const DASH_VERSION   = 'v4.22_20260830';
 const SCHEMA_VERSION = 1; // bump เมื่อ column Excel เปลี่ยน → แจ้ง user
 
 // ── Month label helper — supports any month, no hardcoding ──
@@ -7895,6 +7894,7 @@ function monthToThai(m){
   return mo>=1&&mo<=12?TH[mo-1]:m;
 }
 const CHANGELOG = [
+  { v:'v4.22_20260830', note:'Device Sold: **ตัด Product Cat = Accessories ออกทั้งหมด (รวม AirPods)** — นับเฉพาะ Smartphone, Tablet, Smartwatch (เดิม v4.18 นับเฉพาะ Apple AirPods) · แก้ครบทุกจุดที่นับ Device Sold: processRows (aggregate ที่ Overview/Trend/Brand/Model ใช้), computeDeviceSoldUnits (KPI/Category/Journey/Brand/Model/Top boxes), Daily Trend (dsdtDailyUnits) และรายการ category ในตาราง/กราฟ Device Sold แยก Category (ไม่มีแถว Accessories แล้ว) · ปรับ tooltip 2 จุด ("กรองเหมือน KPI" และ info ของ Device Sold แยก Journey) · ผลต่อ order ที่ผสม Accessories กับ SIM: ไม่ถูกมองเป็นออเดอร์ที่มี device อีกต่อไป · tab IOT ไม่กระทบ (ใช้ Smart Living คนละกลุ่ม) · หมายเหตุ: backup ก่อนแก้ index_v4.21_backup.html' },
   { v:'v4.21_20260830', note:'เพิ่ม **Tab ใหม่ "IOT"** (ต่อจาก GA – Prepaid) แยก 3 กลุ่ม: (1) Smart Living = journey Device Only (device_only + single_product) ที่ Product Cat = Smart living (TOS-New แยกตามชิ้นด้วย pipe/Quantity Cart เหมือน Device Sold, TOS-OLD นับ 1 แถว = 1 ชิ้น), (2) IOT Subscription, (3) OTT Subscription (ใช้กฎแยก iotOtt เดิมจาก v4.19) · ประกอบด้วย: การ์ดสรุปรายเดือน (รวม + 3 กลุ่ม พร้อม MoM day-matched สำหรับเดือนล่าสุดที่ยังไม่ครบ), **Top 5 สินค้าขายดีประจำเดือน** แยกแต่ละกลุ่ม (units, % ของกลุ่ม, MoM รายสินค้า, เลือกเดือนได้ default = ล่าสุด), และ **IOT Daily Trend** แบบเดียวกับ Device Sold (KPI, insight, แท่งรายวันซ้อนสีตามกลุ่ม, ตารางรายวัน, chip เลือกกลุ่ม) พร้อมสวิตช์ "เทียบเดือนก่อน" ใช้ฟังก์ชันเดียวกับ v4.20 · นับตาม toggle Confirm/Cancel เหมือน Device Sold · ไม่กระทบตัวเลข tab อื่น · หมายเหตุ: backup ก่อนแก้ index_v4.20_backup.html' },
   { v:'v4.20_20260830', note:'(1) **Daily Trend ทั้ง 3 (Device Sold, GA Postpaid, GA Prepaid) — เพิ่มสวิตช์ "เทียบเดือนก่อน"** (เปิด/ปิดได้ ค่าเริ่มต้น = ปิด กราฟเหมือนเดิมทุกอย่าง): เมื่อเปิดจะซ้อนเส้นประสีส้ม + จุด แสดงยอดรายวันของเดือนก่อนหน้า (จัดตามวันที่เดียวกัน เช่น 8 ต.ค. เทียบ 8 ก.ย.) ทับบนแท่งเดือนที่เลือก · scale แกนปรับให้รวมค่าสูงสุดของเดือนก่อนด้วย เส้นจึงไม่หลุดกรอบ · tooltip ของแต่ละวันต่อท้ายด้วยยอดเดือนก่อน · การ์ด Total Units เพิ่มบรรทัดยอดเดือนก่อน: เดือนล่าสุดที่ยังไม่ครบ = ช่วงวันที่ 1–as of (day-matched เหมือน v4.15 ตรงกับตัวเลข MoM%), เดือนที่ครบแล้ว = ทั้งเดือน · legend ข้างสวิตช์บอกยอดเต็มเดือนของเดือนก่อน · เดือนแรกสุดที่ไม่มีเดือนก่อนแสดงข้อความ "ไม่มีข้อมูลเดือนก่อนหน้าให้เทียบ" · สวิตช์คงค่าไว้ตอนเปลี่ยนเดือน/journey · ไม่กระทบตัวเลข KPI/MoM% เดิม · หมายเหตุ: backup ก่อนแก้ index_v4.19_backup.html' },
   { v:'v4.19_20260830', note:'(1) **Order Daily Trend — MoM% แบบ day-matched (เหมือน v4.15)**: เดิมเดือนล่าสุดที่ยังไม่ครบเดือนถูกเทียบกับเดือนก่อนแบบเต็มเดือน → ปรับให้ตัดเดือนก่อนเหลือวันที่ 1 ถึง as-of เดียวกัน ทั้งการ์ด KPI (Total Orders) และตาราง "Order รายเดือน แยก Journey" (ทุกแถว + แถวรวม) เดือนที่ครบเดือนทั้งคู่ยังเทียบเต็มเดือนเหมือนเดิม · ทดสอบกับข้อมูล as of 20 ก.ย.: MoM Total Orders ▼39.7% → ▼4.9% ตรงกับคำนวณมือ (ก.ย. 7,709 vs ส.ค. วันที่ 1–20 = 8,109) · (2) **Order Type Breakdown — เรียงการ์ดใหม่**: SIM Only - Postpaid, Prepaid, MNP Postpaid, MNP Prepaid, Pre to Post, Device Only, Device Bundle New, Existing, MNP 1 Step, MNP 2 Step, Device Bundle P2P (= Pre to Post ของ Device Bundle), IOT/OTT (journey ที่ไม่อยู่ในลำดับต่อท้ายตามยอดรวม) · (3) **การ์ด IOT/OTT ใน Order Type Breakdown**: กราฟแท่งเปลี่ยนจากแยก TRUE/DTAC เป็นแยก IOT Subscription / OTT Subscription (stacked) · (4) **Order Daily Trend แยก IOT / OTT**: chip "IOT/OTT subscription" แตกเป็น 2 chip (IOT Subscription, OTT Subscription) เลือกแยกกันได้, ตาราง Order รายเดือน แยก Journey แทนที่แถว IOT/OTT ด้วย 2 แถว (ไม่มีแถวรวม), กราฟแท่งรายวัน: เลือก 1 chip = สีของ journey นั้น / เลือกทั้ง 2 = stacked IOT+OTT พร้อม legend, drilldown รายวันรองรับทั้ง 2 journey · กฎแยก: TOS-New ตาม Order Type (iot_tol = IOT, ott_tol = OTT), TOS-OLD ไม่มี field แยก ใช้ชื่อสินค้า (มี "TrueID TV" = OTT ที่เหลือ = IOT) → เพิ่ม field iotOtt ใน processRows · ตรวจสอบ: IOT+OTT รายเดือน = ยอด IOT/OTT เดิมตรงทุกเดือน (รวม 2,039 = IOT 1,521 + OTT 518), journey อื่นทุกตัวยอดเท่าเดิม · หมายเหตุ: backup ก่อนแก้ index_v4.18_backup.html' },
@@ -8123,7 +8123,7 @@ function toggleODTJrnInfo(){document.getElementById('odt-jrn-info-box').classLis
 // DEVICE SOLD DAILY TREND (DSDT)
 // ══════════════════════════════════════════════════════════════════
 const DEV_SOLD_J=['Device Bundle New','Device Bundle Existing','Device Bundle P2P','Device Bundle MNP 1 Step','Device Bundle MNP 2 Step','Device Only','Single Product'];
-const DEV_SOLD_CATS=['Smartphone','Tablet','Smartwatch','Accessories'];
+const DEV_SOLD_CATS=['Smartphone','Tablet','Smartwatch'];
 
 // ── UTM Source filter สำหรับทุก section ใน tab Device Sold (v4.10) ──
 let _devUtmFilter='all'; // 'all' | ค่า utmSource ที่เลือก
@@ -8132,7 +8132,7 @@ function computeDeviceSoldUnits(){
   if(_devSoldUnitsCache&&_devSoldUnitsCache._rowsRef===DATA._rows) return _devSoldUnitsCache;
   const rows=DATA._rows||[];
   const SIM_JOURNEYS=['SIM Only - Postpaid','SIM Only - Prepaid','SIM Only - MNP Postpaid','SIM Only - MNP Prepaid','SIM Only - Pre to Post'];
-  const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch','Accessories'];
+  const DEV_CATS_CHECK=['Smartphone','Tablet','Smartwatch'];
   const orderHasSim={},orderHasDev={};
   rows.forEach(r=>{
     if(!r.orderIdForDedup) return;
